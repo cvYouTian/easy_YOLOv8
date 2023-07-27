@@ -61,8 +61,8 @@ class C2f(nn.Module):
         self.in_channel = in_channel
         self.out_channel = out_channel
         self.conv = Conv(i=in_channel, o=out_channel, k=1, s=1, p=0)
-        self.bottleneck = nn.ModuleList(Bottleneck(shortcut=shortcut, in_channel=self.out_channel,
-                                                   out_channel=self.out_channel) for _ in range(Block))
+        self.bottleneck = nn.ModuleList(Bottleneck(shortcut=shortcut, in_channel=self.out_channel*0.5,
+                                                   out_channel=self.out_channel*0.5) for _ in range(Block))
 
     def forward(self, x):
         x0 = list(self.conv(x).chunk(2, 1))
@@ -95,12 +95,40 @@ class YOLOv8l(nn.Module):
         self.c2f_21 = C2f(shortcut=False, Block=3, in_channel=1024, out_channel=512)
     @staticmethod
     def Detect():
-
-
-
-
-
-    def forward(self,x):
         pass
+
+    def forward(self, x):
+        x0 = self.conv0(x)
+        x1 = self.conv1(x0)
+        x2 = self.c2f_2(x1)
+        x3 = self.conv3(x2)
+        x4 = self.c2f_4(x3)
+        x5 = self.conv5(x4)
+        x6 = self.c2f_6(x5)
+        x7 = self.conv7(x6)
+        x8 = self.c2f_8(x7)
+        x9 = self.sppf_9(x8)
+        x10 = self.upsample(x9)
+        x11 = torch.cat((x6, x10), 1)
+        x12 = self.c2f_12(x11)
+        x13 = self.upsample(x12)
+        x14 = torch.cat((x4, x13), 1)
+        x15 = self.c2f_15(x14)
+
+        x16 = self.conv16(x15)
+        x17 = torch.cat((x12, x16), 1)
+        x18 = self.c2f_18(x17)
+
+        x19 = self.conv19(x18)
+        x20 = torch.cat((x9, x19), 1)
+        x21 = self.c2f_21(x20)
+        return x21
+
+
+
+
+
+net = YOLOv8l()
+print(net)
 
 
