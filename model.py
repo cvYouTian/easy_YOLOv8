@@ -60,16 +60,18 @@ class C2f(nn.Module):
         self.Block = Block
         self.in_channel = in_channel
         self.out_channel = out_channel
-        self.conv = Conv(i=in_channel, o=out_channel, k=1, s=1, p=0)
+        self.conv1 = Conv(i=in_channel, o=out_channel, k=1, s=1, p=0)
+        self.conv2 = Conv(i=out_channel*0.5*3, o=out_channel, k=1, s=1, p=0)
         self.bottleneck = nn.ModuleList(Bottleneck(shortcut=shortcut, in_channel=self.out_channel*0.5,
                                                    out_channel=self.out_channel*0.5) for _ in range(Block))
 
     def forward(self, x):
-        x0 = list(self.conv(x).chunk(2, 1))
-        x0.extend(i(x0[-1]) for i in self.bottleneck)
-        return self.conv(torch.cat(x0, 1))
-
-
+        # x0 = list(self.conv(x).chunk(2, 1))
+        # x0.extend(i(x0[-1]) for i in self.bottleneck)
+        # return self.conv(torch.cat(x0, 1))
+        x0, x1 = torch.split(x, [self.out_channel*0.5, self.out_channel*0.5], dim=1)
+        x2 = (i(x) for i in self.bottleneck)
+        x3 = torch.cat(())
 
 class YOLOv8l(nn.Module):
     def __init__(self):
@@ -122,7 +124,7 @@ class YOLOv8l(nn.Module):
         x19 = self.conv19(x18)
         x20 = torch.cat((x9, x19), 1)
         x21 = self.c2f_21(x20)
-        return x21
+        return x15, x18, x21
 
 
 
