@@ -6,6 +6,7 @@ from ultralytics import YOLO
 
 # print(len(os.listdir("./dataset/coco128/images/train2017")))
 
+
 def train():
     # Load a model
     model = YOLO('yolov8l.yaml')
@@ -25,6 +26,7 @@ def train():
     # Train the model
     model.train(data="VOC.yaml", epochs=150, imgsz=640)
 
+
 def onnx():
     # Load a model
     # model = YOLO('yolov8n.pt')  # load an official model
@@ -32,6 +34,8 @@ def onnx():
 
     # Export the model
     model.export(format='onnx')
+
+
 def test_img():
 
     model = YOLO("/home/you/Desktop/YOLOv8/easy_YOLOv8/runs/detect/m6/weights/best.pt")
@@ -72,6 +76,8 @@ def test_video():
                 break
     cv2.destroyAllWindows()
     cap.release()
+
+
 def tracker():
     # import cv2
     # from ultralytics import YOLO
@@ -137,4 +143,5 @@ if __name__ == "__main__":
     # test_img()
     # tracker()
     # onnx()
-    # netron.start("/home/you/Desktop/YOLOv8/easy_YOLOv8/runs/detect/m6re/weights/best.onnx")
+
+    # netron.start("/YOLOv8/runs/detect/m6re/weights/best.onnx")

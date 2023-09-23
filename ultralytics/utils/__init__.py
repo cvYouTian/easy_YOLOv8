@@ -29,9 +29,13 @@ LOCAL_RANK = int(os.getenv('LOCAL_RANK', -1))  # https://pytorch.org/docs/stable
 WORLD_SIZE = int(os.getenv('WORLD_SIZE', 1))
 
 # Other Constants
+# 拿到当前路径的绝对路径
 FILE = Path(__file__).resolve()
+# 返回上两层的目录：/home/youtian/Documents/pro/pyCode/easy_YOLOv8/ultralytics
 ROOT = FILE.parents[1]  # YOLO
+# /home/youtian/Documents/pro/pyCode/easy_YOLOv8/ultralytics/cfg/default.yaml
 DEFAULT_CFG_PATH = ROOT / 'cfg/default.yaml'
+# 定义cpu使用数量
 NUM_THREADS = min(8, max(1, os.cpu_count() - 1))  # number of YOLOv5 multiprocessing threads
 AUTOINSTALL = str(os.getenv('YOLO_AUTOINSTALL', True)).lower() == 'true'  # global auto-install mode
 VERBOSE = str(os.getenv('YOLO_VERBOSE', True)).lower() == 'true'  # global verbose mode

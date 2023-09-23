@@ -729,16 +729,20 @@ def yaml_model_load(path):
     import re
 
     path = Path(path)
+    # 判断是不是在大分辨率下的模型
     if path.stem in (f'yolov{d}{x}6' for x in 'nsmlx' for d in (5, 8)):
         new_stem = re.sub(r'(\d+)([nslmx])6(.+)?$', r'\1\2-p6\3', path.stem)
         LOGGER.warning(f'WARNING ⚠️ Ultralytics YOLO P6 models now use -p6 suffix. Renaming {path.stem} to {new_stem}.')
         path = path.with_name(new_stem + path.suffix)
 
     unified_path = re.sub(r'(\d+)([nslmx])(.+)?$', r'\1\3', str(path))  # i.e. yolov8x.yaml -> yolov8.yaml
+    # 拿到path的绝对路径
     yaml_file = check_yaml(unified_path, hard=False) or check_yaml(path)
+    # 返回一个yolo8.yaml对应的字典
     d = yaml_load(yaml_file)  # model dict
     d['scale'] = guess_model_scale(path)
     d['yaml_file'] = str(path)
+    # d封装的字典就是模型的骨架
     return d
 
 

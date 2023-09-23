@@ -15,4 +15,6 @@
 ### [Python中typing模块详解](https://www.jianshu.com/p/9b6b9a06cd3e)
 ### [Python \_\_call\_\_()方法（详解版）](http://c.biancheng.net/view/2380.html)
 ### [Python魔法方法之\_\_getattr\_\_()和getattribute](https://www.py.cn/jishu/jichu/10799.html)
-### []
+### 
+
+在定义列表是要使用list()因为其为深拷贝，是一个独立的

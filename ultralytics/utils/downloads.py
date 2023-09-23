@@ -15,6 +15,8 @@ from tqdm import tqdm
 
 from ultralytics.utils import LOGGER, checks, clean_url, emojis, is_online, url2file
 
+
+# 使用多个列表（每个列表中添加循环填充），遍历所有可能的模型名字
 GITHUB_ASSET_NAMES = [f'yolov8{k}{suffix}.pt' for k in 'nsmlx' for suffix in ('', '6', '-cls', '-seg', '-pose')] + \
                      [f'yolov5{k}u.pt' for k in 'nsmlx'] + \
                      [f'yolov3{k}u.pt' for k in ('', '-spp', '-tiny')] + \
@@ -23,6 +25,8 @@ GITHUB_ASSET_NAMES = [f'yolov8{k}{suffix}.pt' for k in 'nsmlx' for suffix in (''
                      [f'FastSAM-{k}.pt' for k in 'sx'] + \
                      [f'rtdetr-{k}.pt' for k in 'lx'] + \
                      ['mobile_sam.pt']
+
+# 拿到模型的名字
 GITHUB_ASSET_STEMS = [Path(k).stem for k in GITHUB_ASSET_NAMES]
 
 

@@ -31,6 +31,7 @@ TASK_MAP = {
 class YOLO:
 
     def __init__(self, model: Union[str, Path] = 'yolov8n.pt', task=None) -> None:
+        # 拿到默认的回调函数的字典
         self.callbacks = callbacks.get_default_callbacks()
         self.predictor = None  # reuse predictor
         self.model = None  # model object
@@ -45,15 +46,20 @@ class YOLO:
         model = str(model).strip()  # strip spaces
 
         # Check if Ultralytics HUB model from https://hub.ultralytics.com
+        # is_hub_model是false
         if self.is_hub_model(model):
             from ultralytics.hub.session import HUBTrainingSession
             self.session = HUBTrainingSession(model)
             model = self.session.model_file
 
         # Load or create new YOLO model
+        # 拿到的是yaml后缀
         suffix = Path(model).suffix
+        # 判断suffix不再stem之中而主干部分在
+        # add suffix, i.e. yolov8n -> yolov8n.pt
         if not suffix and Path(model).stem in GITHUB_ASSET_STEMS:
-            model, suffix = Path(model).with_suffix('.pt'), '.pt'  # add suffix, i.e. yolov8n -> yolov8n.pt
+            model, suffix = Path(model).with_suffix('.pt'), '.pt'
+        # 如果是.yaml的文件格式则使用scratsh从头训练
         if suffix == '.yaml':
             self._new(model, task)
         else:
@@ -85,6 +91,7 @@ class YOLO:
             task (str | None): model task
             verbose (bool): display model info on load
         """
+        # 返回配置文件的字典
         cfg_dict = yaml_model_load(cfg)
         self.cfg = cfg
         self.task = task or guess_model_task(cfg_dict)

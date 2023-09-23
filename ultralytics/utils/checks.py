@@ -283,15 +283,19 @@ def check_torchvision():
                   "'pip install -U torch torchvision' to update both.\n"
                   'For a full compatibility table see https://github.com/pytorch/vision#installation')
 
-
+# 判断file的后缀是不是在suffix的后缀
 def check_suffix(file='yolov8n.pt', suffix='.pt', msg=''):
     """Check file(s) for acceptable suffix."""
     if file and suffix:
+        # 是一个元组，不是字符
         if isinstance(suffix, str):
             suffix = (suffix, )
+        # for  f in (file if isinstance(file, (list, tuple)) else [file]:)
+        # 如果是大写的.YAML文件就把他转化成小写之后在进行判断
         for f in file if isinstance(file, (list, tuple)) else [file]:
             s = Path(f).suffix.lower().strip()  # file suffix
             if len(s):
+                # 进行判断
                 assert s in suffix, f'{msg}{f} acceptable suffix is {suffix}, not {s}'
 
 
@@ -309,11 +313,15 @@ def check_yolov5u_filename(file: str, verbose: bool = True):
     return file
 
 
+# 找到配置文件的路径
 def check_file(file, suffix='', download=True, hard=True):
     """Search/download file (if necessary) and return path."""
+    # 判断file的文件后缀是不是在suffix中
     check_suffix(file, suffix)  # optional
-    file = str(file).strip()  # convert to string and strip spaces
-    file = check_yolov5u_filename(file)  # yolov5n -> yolov5nu
+    # convert to string and strip spaces
+    file = str(file).strip()
+    # 和yolov5相关， yolov5n -> yolov5nu
+    file = check_yolov5u_filename(file)
     if not file or ('://' not in file and Path(file).exists()):  # exists ('://' check required in Windows Python<3.10)
         return file
     elif download and file.lower().startswith(('https://', 'http://', 'rtsp://', 'rtmp://')):  # download
@@ -325,14 +333,17 @@ def check_file(file, suffix='', download=True, hard=True):
             downloads.safe_download(url=url, file=file, unzip=False)
         return file
     else:  # search
+        # 在ROOT文件夹下的全局搜索，查找file配置文件，返回目标文件的路径，以列表承接
         files = glob.glob(str(ROOT / 'cfg' / '**' / file), recursive=True)  # find file
         if not files and hard:
             raise FileNotFoundError(f"'{file}' does not exist")
         elif len(files) > 1 and hard:
             raise FileNotFoundError(f"Multiple files match '{file}', specify exact path: {files}")
+        # 返回yaml文件的路径
         return files[0] if len(files) else []  # return file
 
 
+# 检查是不是yaml的后缀，在根据名字找到路径
 def check_yaml(file, suffix=('.yaml', '.yml'), hard=True):
     """Search/download YAML file (if necessary) and return path, checking suffix."""
     return check_file(file, suffix, hard=hard)

@@ -177,7 +177,7 @@ default_callbacks = {
     'on_export_start': [on_export_start],
     'on_export_end': [on_export_end]}
 
-
+# 使用defaultdict制作一个新字典，这个字典的键为原来的建，值为列表形式，并且为深拷贝, 后续向vale中抛入新的
 def get_default_callbacks():
     """
     Return a copy of the default_callbacks dictionary with lists as default values.
