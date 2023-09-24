@@ -74,10 +74,23 @@ from pathlib import Path
 # file = "helloworld"
 # for f in file if isinstance(file, (list, tuple)) else [file]:
 #     print(1)
-import glob
-# FILE = Path(__file__).resolve()
-# print(FILE.parents[0], FILE.parents[1], FILE.parents[2])
-ROOT = Path("/home/youtian/Documents/pro/pyCode/easy_YOLOv8/ultralytics")
-file = "VOC.yaml"
-files = glob.glob(str(ROOT / 'cfg' / '**' / file), recursive=True)
-print(files)
+# import glob
+# # FILE = Path(__file__).resolve()
+# # print(FILE.parents[0], FILE.parents[1], FILE.parents[2])
+# ROOT = Path("/home/youtian/Documents/pro/pyCode/easy_YOLOv8/ultralytics")
+# file = "VOC.yaml"
+# files = glob.glob(str(ROOT / 'cfg' / '**' / file), recursive=True)
+# print(files)
+
+# import contextlib
+# from copy import deepcopy
+# from pathlib import Path
+#
+# import torch
+# import torch.nn as nn
+import logging
+print(os.getenv("RANK"))
+a = 1
+set_logging(LOGGING_NAME, verbose=VERBOSE)  # run before defining LOGGER
+LOGGER = logging.getLogger(LOGGING_NAME)  # define globally (used in train.py, val.py, detect.py, etc.)
+LOGGER.info('kjhbn')

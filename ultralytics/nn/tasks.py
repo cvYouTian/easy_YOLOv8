@@ -220,17 +220,22 @@ class BaseModel(nn.Module):
 
 class DetectionModel(BaseModel):
     """YOLOv8 detection model."""
-
+    # 这里可以添加一个nc参数
     def __init__(self, cfg='yolov8n.yaml', ch=3, nc=None, verbose=True):  # model, input channels, number of classes
         super().__init__()
+        # 如果传进来的是一个字典，则直接使用，如果是别的在加载一下
         self.yaml = cfg if isinstance(cfg, dict) else yaml_model_load(cfg)  # cfg dict
 
         # Define model
+        # 添加模型的输入通道
         ch = self.yaml['ch'] = self.yaml.get('ch', ch)  # input channels
         if nc and nc != self.yaml['nc']:
             LOGGER.info(f"Overriding model.yaml nc={self.yaml['nc']} with nc={nc}")
-            self.yaml['nc'] = nc  # override yaml value
-        self.model, self.save = parse_model(deepcopy(self.yaml), ch=ch, verbose=verbose)  # model, savelist
+            # 重写nc
+            # override yaml value
+            self.yaml['nc'] = nc
+        # model, savelist
+        self.model, self.save = parse_model(deepcopy(self.yaml), ch=ch, verbose=verbose)
         self.names = {i: f'{i}' for i in range(self.yaml['nc'])}  # default names dict
         self.inplace = self.yaml.get('inplace', True)
 
@@ -650,8 +655,11 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
 
     # Args
     max_channels = float('inf')
+    # 获得'nc', 'activation', 'scales'
     nc, act, scales = (d.get(x) for x in ('nc', 'activation', 'scales'))
+    # 添加depth, width, kpt_shape为1.0
     depth, width, kpt_shape = (d.get(x, 1.0) for x in ('depth_multiple', 'width_multiple', 'kpt_shape'))
+    # 根据n、l、m、s等选参数
     if scales:
         scale = d.get('scale')
         if not scale:
@@ -660,15 +668,19 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
         depth, width, max_channels = scales[scale]
 
     if act:
+        # eval()可以将string的参数脱掉字符格式转化为：“【1, 1, 3】”->[1, 1, 3]
         Conv.default_act = eval(act)  # redefine default activation, i.e. Conv.default_act = nn.SiLU()
         if verbose:
             LOGGER.info(f"{colorstr('activation:')} {act}")  # print
 
     if verbose:
         LOGGER.info(f"\n{'':>3}{'from':>20}{'n':>3}{'params':>10}  {'module':<45}{'arguments':<30}")
+    # [3, ]
     ch = [ch]
     layers, save, c2 = [], [], ch[-1]  # layers, savelist, ch out
-    for i, (f, n, m, args) in enumerate(d['backbone'] + d['head']):  # from, number, module, args
+    # from, number, module, args
+    for i, (f, n, m, args) in enumerate(d['backbone'] + d['head']):
+        # 这里使用getattr函数获得某一类的方法， 使用globals的内置函数返回全部全局变量
         m = getattr(torch.nn, m[3:]) if 'nn.' in m else globals()[m]  # get module
         for j, a in enumerate(args):
             if isinstance(a, str):

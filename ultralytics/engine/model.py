@@ -91,14 +91,18 @@ class YOLO:
             task (str | None): model task
             verbose (bool): display model info on load
         """
-        # 返回配置文件的字典
+        # 返回字典d
         cfg_dict = yaml_model_load(cfg)
         self.cfg = cfg
+        # detect
         self.task = task or guess_model_task(cfg_dict)
+        # DetectionModel(cfg_dict, verbose=verbose and RANK == -1)
+        # 这里可以添加一个nc参数
         self.model = TASK_MAP[self.task][0](cfg_dict, verbose=verbose and RANK == -1)  # build model
+        # 再次使用字典封装一个模型框架
         self.overrides['model'] = self.cfg
-
         # Below added to allow export from yamls
+        # 将模型的骨架文件和模型的超参数文件（defult.yaml）结合，形成一个全体参数的字典
         args = {**DEFAULT_CFG_DICT, **self.overrides}  # combine model and default args, preferring model args
         self.model.args = {k: v for k, v in args.items() if k in DEFAULT_CFG_KEYS}  # attach args to model
         self.model.task = self.task
