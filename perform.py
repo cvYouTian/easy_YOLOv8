@@ -11,7 +11,7 @@ def train():
     # Load a model
     model = YOLO('yolov8l.yaml')
     # model = YOLO('yolov8m.pt')
-    # img = torch.rand(1, 3, 640, 64
+    # img = torch.rand(1, 3, 640, 64)
     # torch.onnx.export(model=model, args=img, f="/home/you/Desktop/YOLOv8/easy_YOLOv8/runs/detect/m6re/weights/best.onnx",input_names=["image"],output_names=["feature_map"])
 
     # print(model)
@@ -58,11 +58,11 @@ def test_img():
 
 def test_video():
     # model = YOLO("/home/you/Desktop/YOLOv8/easy_YOLOv8/runs/detect/train5/weights/best.pt")
-    model = YOLO("/home/you/Desktop/YOLOv8/easy_YOLOv8/runs/detect/m6bone1PPWConv+1Conv/weights/best.pt")
+    model = YOLO("/home/youtian/Documents/pro/pyCode/easy_YOLOv8/runs/detect/Faster-YOLOv8l/weights/best.pt")
     # pa = "/home/you/Desktop/tools/videoSet/speedboat1.mp4"
-    pa = "/home/you/Downloads/l.mp4"
+    pa = "/home/youtian/Documents/pro/2023/2023海上高速目标检测/videoSet/airplane2.mp4"
     cap = cv2.VideoCapture(pa)
-    size = (int(cap .get(cv2.CAP_PROP_FRAME_WIDTH)),int(cap .get(cv2.CAP_PROP_FRAME_HEIGHT)),)
+    size = (int(cap .get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap .get(cv2.CAP_PROP_FRAME_HEIGHT)),)
 
     out = cv2.VideoWriter('airplane.mp4', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 40, size)
     while cap.isOpened():
@@ -138,8 +138,8 @@ def tracker():
 
 
 if __name__ == "__main__":
-    train()
-    # test_video()
+    # train()
+    test_video()
     # test_img()
     # tracker()
     # onnx()

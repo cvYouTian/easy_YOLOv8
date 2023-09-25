@@ -1,26 +1,27 @@
-# Ultralytics YOLO 🚀, AGPL-3.0 license
 """
 Block modules
 """
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
 from .conv import Conv, DWConv, GhostConv, LightConv, RepConv, PConv
 from .transformer import TransformerBlock
 
+
 __all__ = ('DFL', 'HGBlock', 'HGStem', 'SPP', 'SPPF', 'C1', 'C2', 'C3', 'C2f', 'C3x', 'C3TR', 'C3Ghost',
-           'GhostBottleneck', 'Bottleneck', 'BottleneckCSP', 'Proto', 'RepC3', 'PconvBottleneck', 'FasterC2f')
+           'GhostBottleneck', 'Bottleneck', 'BottleneckCSP', 'Proto', 'RepC3', 'PconvBottleneck', 'FasterC2f_N',
+           'FasterC2f', 'PconvBottleneck_n')
 
 
-def autopad(k, p=None, d=1):  # kernel, padding, dilation
+# kernel, padding, dilation
+def autopad(k, p=None, d=1):
     """Pad to 'same' shape outputs."""
     if d > 1:
         k = d * (k - 1) + 1 if isinstance(k, int) else [d * (x - 1) + 1 for x in k]  # actual kernel-size
     if p is None:
         p = k // 2 if isinstance(k, int) else [x // 2 for x in k]  # auto-pad
     return p
+
 
 class DFL(nn.Module):
     """
@@ -196,6 +197,17 @@ class C2f(nn.Module):
         return self.cv2(torch.cat(y, 1))
 
 
+class FasterC2f_N(C2f):
+    """
+    add FasterBlock with 2 convolutions
+    """
+    def __init__(self, c1, c2, n=1, shortcut=False, g=1, e=0.5):  # ch_in, ch_out, number, shortcut, groups, expansion
+        super().__init__(c1, c2, n, shortcut, g, e)
+        self.c = int(c2 * e)
+        self.m = nn.ModuleList(PconvBottleneck_n(self.c, self.c, shortcut, g, k=((3, 3), (3, 3)),
+                                                 e=1.0) for _ in range(n))
+
+
 class FasterC2f(C2f):
     """
     add FasterBlock with 2 convolutions
@@ -203,7 +215,8 @@ class FasterC2f(C2f):
     def __init__(self, c1, c2, n=1, shortcut=False, g=1, e=0.5):  # ch_in, ch_out, number, shortcut, groups, expansion
         super().__init__(c1, c2, n, shortcut, g, e)
         self.c = int(c2 * e)
-        self.m = nn.ModuleList(PconvBottleneck(self.c, self.c, shortcut, g, k=((3, 3), (3, 3)), e=1.0) for _ in range(n))
+        self.m = nn.ModuleList(PconvBottleneck(self.c, self.c, shortcut, g, k=((3, 3), (3, 3)),
+                                               e=1.0) for _ in range(n))
 
 
 class C3(nn.Module):
@@ -307,7 +320,7 @@ class PconvBottleneck(nn.Module):
     def __init__(self, c1, c2, shortcut=True, g=1, k=(3, 3), e=0.5):  # ch_in, ch_out, shortcut, groups, kernels, expand
         super().__init__()
         c_ = int(c2 * e)  # hidden channels
-        self.fasterbloack = nn.Sequential(
+        self.fasterblock = nn.Sequential(
             PConv(dim=c1, n_div=4),
             Conv(c1=c1, c2=c_, k=1, s=1),
         )
@@ -318,8 +331,28 @@ class PconvBottleneck(nn.Module):
 
     def forward(self, x):
         """'forward()' applies the YOLOv5 FPN to input data."""
-        return x + self.conv(self.fasterbloack(x)) if self.add else self.conv(self.fasterbloack(x))
+        return x + self.conv(self.fasterblock(x)) if self.add else self.conv(self.fasterblock(x))
 
+
+class PconvBottleneck_n(nn.Module):
+    """add bottleneck of PConv."""
+
+    def __init__(self, c1, c2, shortcut=True, g=1, k=(3, 3), e=0.5):  # ch_in, ch_out, shortcut, groups, kernels, expand
+        super().__init__()
+        # hidden channels
+        c_ = int(c2 * e)
+        self.fasterblock = nn.Sequential(
+            PConv(dim=c1, n_div=4),
+            Conv(c1=c1, c2=2*c_, k=1, s=1),
+            nn.Conv2d(in_channels=2*c_, out_channels=c2, kernel_size=1, stride=1, padding=autopad(k=1, p=None, d=1),
+                      groups=g, bias=False)
+        )
+
+        self.add = shortcut and c1 == c2
+
+    def forward(self, x):
+        """'forward()' applies the YOLOv5 FPN to input data."""
+        return x + self.fasterblock(x) if self.add else self.fasterblock(x)
 
 
 class BottleneckCSP(nn.Module):
