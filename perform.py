@@ -1,6 +1,10 @@
 import sys
 import os
+import time
+from pathlib import Path
+from typing import Union
 import cv2
+from tqdm import tqdm
 from ultralytics import YOLO
 
 
@@ -14,7 +18,8 @@ def train():
     # model = YOLO('yolov8n.yaml').load('yolov8n.pt')
 
     # Train the model
-    model.train(data="HSTS6.yaml", epochs=150, imgsz=640)
+    # model.train(data="HSTS6.yaml", epochs=150, imgsz=640)
+    model.train(data="VOC.yaml", epochs=150, imgsz=640)
 
 
 def onnx():
@@ -65,6 +70,21 @@ def test_video():
                 break
     cv2.destroyAllWindows()
     cap.release()
+
+
+def test_folders(model_path: str = "/home/youtian/Documents/pro/pyCode/easy_YOLOv8/runs/detect/YOLOv8l/weights/best.pt",
+                 srcpath: str = "/home/youtian/Documents/pro/pyCode/easy_YOLOv8/resource") -> None:
+    model = YOLO(model_path)
+    srcpath = Path(srcpath) if not isinstance(srcpath, Path) else srcpath
+    dstpath = sys.path[0]
+    dstpath = Path(dstpath) / Path(str(time.time())[-10:])
+    os.mkdir(dstpath)
+    for index, i in enumerate(srcpath.iterdir()):
+        res = model(cv2.imread(str(i)))
+        ann = res[0].plot()
+        # 把测试的图片提前resize成相同的size
+        ann = cv2.resize(ann, (640, 640))
+        cv2.imwrite(str(Path(dstpath) / Path("{}.jpg".format(index))), ann)
 
 
 def tracker():
@@ -122,8 +142,9 @@ def tracker():
 
 
 if __name__ == "__main__":
-    train()
-    # test_video()
+    # train()
+    test_video()
+    # test_folders()
     # test_img()
     # tracker()
     # onnx()

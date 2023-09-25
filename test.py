@@ -1,4 +1,5 @@
 import os
+import sys
 from collections import defaultdict
 from copy import deepcopy
 from pathlib import Path
@@ -99,7 +100,23 @@ from pathlib import Path
 # # l = [i for i in range(10) if i ==1]
 # for i in range(10) if i ==1 else range(20):
 #     print(i)
-
-import torch
-print(torch.cuda.is_available())
+import cv2
+# import torch
+# print(torch.cuda.is_available())
 # print(l)
+
+# cap = cv2.VideoCapture(-1)
+# while cap.isOpened():
+#     _, im = cap.read()
+#     cv2.imshow("shit", im)
+#     if cv2.waitKey(1) == ord('q'):
+#         break
+# cap.release()
+#
+
+
+# this is test
+
+import os
+# print(sys.path[0]+ "ll")
+# print(os.mkdir("./kk"))
