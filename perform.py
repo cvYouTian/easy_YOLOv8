@@ -1,30 +1,20 @@
 import sys
 import os
 import cv2
-# from keras.utils import plot_model
 from ultralytics import YOLO
-
-# print(len(os.listdir("./dataset/coco128/images/train2017")))
 
 
 def train():
     # Load a model
     model = YOLO('yolov8l.yaml')
     # model = YOLO('yolov8m.pt')
-    # img = torch.rand(1, 3, 640, 64)
-    # torch.onnx.export(model=model, args=img, f="/home/you/Desktop/YOLOv8/easy_YOLOv8/runs/detect/m6re/weights/best.onnx",input_names=["image"],output_names=["feature_map"])
-
-    # print(model)
-    # plot_model(model)
-    # for name, para in model.named_parameters():
-    #     print(name,":",para)
     
     # 做预训练
     # model = YOLO('yolov8x.pt')
     # model = YOLO('yolov8n.yaml').load('yolov8n.pt')
 
     # Train the model
-    model.train(data="VOC.yaml", epochs=150, imgsz=640)
+    model.train(data="HSTS6.yaml", epochs=150, imgsz=640)
 
 
 def onnx():
@@ -37,7 +27,6 @@ def onnx():
 
 
 def test_img():
-
     model = YOLO("/home/you/Desktop/YOLOv8/easy_YOLOv8/runs/detect/m6/weights/best.pt")
     img = cv2.imread("/home/you/Desktop/YOLOv8/easy_YOLOv8/7.jpg")
     res = model(img)
@@ -79,12 +68,7 @@ def test_video():
 
 
 def tracker():
-    # import cv2
-    # from ultralytics import YOLO
-    # pa = "/home/you/Desktop/tools/videoSet/speedboat2.mp4"
     pa = "/home/you/Downloads/l.mp4"
-    # pa = "/home/you/Desktop/2023海上高速目标检测/videoSet/speedboat1.mp4"
-    # pa = "/home/you/Desktop/tools/videoSet/missile3.mp4"
     cap = cv2.VideoCapture(pa)
     size = (int(cap .get(cv2.CAP_PROP_FRAME_WIDTH)),int(cap .get(cv2.CAP_PROP_FRAME_HEIGHT)),)
     # cap = cv2.VideoCapture("/home/you/Desktop/YOLOv8/easy_YOLOv8//sample.mp4")
@@ -138,8 +122,8 @@ def tracker():
 
 
 if __name__ == "__main__":
-    # train()
-    test_video()
+    train()
+    # test_video()
     # test_img()
     # tracker()
     # onnx()

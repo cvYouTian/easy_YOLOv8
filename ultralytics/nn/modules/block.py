@@ -204,7 +204,7 @@ class FasterC2f_N(C2f):
     def __init__(self, c1, c2, n=1, shortcut=False, g=1, e=0.5):  # ch_in, ch_out, number, shortcut, groups, expansion
         super().__init__(c1, c2, n, shortcut, g, e)
         self.c = int(c2 * e)
-        self.m = nn.ModuleList(PconvBottleneck_n(self.c, self.c, shortcut, g, k=((3, 3), (3, 3)),
+        self.m = nn.ModuleList(PconvBottleneck_n(self.c, self.c, shortcut, g=g, k=((3, 3), (3, 3)),
                                                  e=1.0) for _ in range(n))
 
 
