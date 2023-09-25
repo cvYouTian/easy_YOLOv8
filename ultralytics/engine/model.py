@@ -103,8 +103,11 @@ class YOLO:
         self.overrides['model'] = self.cfg
         # Below added to allow export from yamls
         # 将模型的骨架文件和模型的超参数文件（defult.yaml）结合，形成一个全体参数的字典
-        args = {**DEFAULT_CFG_DICT, **self.overrides}  # combine model and default args, preferring model args
+        # combine model and default args, preferring model args
+        args = {**DEFAULT_CFG_DICT, **self.overrides}
+        # 把defualt.yaml中所有非None的键值对拿到
         self.model.args = {k: v for k, v in args.items() if k in DEFAULT_CFG_KEYS}  # attach args to model
+        # 定义detect任务
         self.model.task = self.task
 
     def _load(self, weights: str, task=None):

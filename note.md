@@ -18,3 +18,11 @@
 ### 
 
 在定义列表是要使用list()因为其为深拷贝，是一个独立的
+
+### 以下这两种推导式的执行顺序不一样
+```python
+i = 1
+l = [i for i in range(10) if i ==1]
+for i in range(10) if i ==1 else range(20):
+    print(i)
+```

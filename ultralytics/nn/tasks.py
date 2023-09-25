@@ -1,12 +1,8 @@
-# Ultralytics YOLO 🚀, AGPL-3.0 license
-
 import contextlib
 from copy import deepcopy
 from pathlib import Path
-
 import torch
 import torch.nn as nn
-
 from ultralytics.nn.modules import (AIFI, C1, C2, C3, C3TR, SPP, SPPF, Bottleneck, BottleneckCSP, C2f, C3Ghost, C3x,
                                     Classify, Concat, Conv, Conv2, ConvTranspose, Detect, DWConv, DWConvTranspose2d,
                                     Focus, GhostBottleneck, GhostConv, HGBlock, HGStem, Pose, RepC3, RepConv,
@@ -649,6 +645,7 @@ def attempt_load_one_weight(weight, device=None, inplace=True, fuse=False):
     return model, ckpt
 
 
+# 将yaml文件中转化为pytorch的模型结构
 def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
     """Parse a YOLO model.yaml dictionary into a PyTorch model."""
     import ast
@@ -733,6 +730,7 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
         if i == 0:
             ch = []
         ch.append(c2)
+
     return nn.Sequential(*layers), sorted(save)
 
 

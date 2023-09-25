@@ -88,9 +88,16 @@ from pathlib import Path
 #
 # import torch
 # import torch.nn as nn
-import logging
-print(os.getenv("RANK"))
-a = 1
-set_logging(LOGGING_NAME, verbose=VERBOSE)  # run before defining LOGGER
-LOGGER = logging.getLogger(LOGGING_NAME)  # define globally (used in train.py, val.py, detect.py, etc.)
-LOGGER.info('kjhbn')
+# import logging
+# print(os.getenv("RANK"))
+# a = 1
+# set_logging(LOGGING_NAME, verbose=VERBOSE)  # run before defining LOGGER
+# LOGGER = logging.getLogger(LOGGING_NAME)  # define globally (used in train.py, val.py, detect.py, etc.)
+# LOGGER.info('kjhbn')
+
+i = 2
+# l = [i for i in range(10) if i ==1]
+for i in range(10) if i ==1 else range(20):
+    print(i)
+
+# print(l)

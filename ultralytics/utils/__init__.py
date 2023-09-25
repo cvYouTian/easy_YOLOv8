@@ -314,7 +314,7 @@ def yaml_save(file='data.yaml', data=None):
     with open(file, 'w') as f:
         yaml.safe_dump(data, f, sort_keys=False, allow_unicode=True)
 
-
+# 将yaml文件转成一个字典
 def yaml_load(file='data.yaml', append_filename=False):
     """
     Load YAML data from a file.
@@ -353,11 +353,15 @@ def yaml_print(yaml_file: Union[str, Path, dict]) -> None:
 
 
 # Default configuration
+# 得到一个defualt.yaml的字典格式
 DEFAULT_CFG_DICT = yaml_load(DEFAULT_CFG_PATH)
+# 将yaml文件中的一些值为None的元素的键也置为None
 for k, v in DEFAULT_CFG_DICT.items():
     if isinstance(v, str) and v.lower() == 'none':
         DEFAULT_CFG_DICT[k] = None
+# 得到一个defualt.yaml的字典的全部key
 DEFAULT_CFG_KEYS = DEFAULT_CFG_DICT.keys()
+#
 DEFAULT_CFG = IterableSimpleNamespace(**DEFAULT_CFG_DICT)
 
 
