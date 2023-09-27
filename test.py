@@ -115,8 +115,11 @@ import cv2
 #
 
 
-# this is test
-
-import os
-# print(sys.path[0]+ "ll")
-# print(os.mkdir("./kk"))
+# # this is test
+# a = 3
+# import os
+# # print(sys.path[0]+ "ll")
+# # print(os.mkdir("./kk"))
+# # print(f"\n{'':>3}{'from':>20}{'n':>3}{'params':>10}  {'module':<45}{'arguments':<30}")
+# assert a>5
+# print(a)

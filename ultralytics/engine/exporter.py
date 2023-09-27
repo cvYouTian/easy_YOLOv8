@@ -57,9 +57,7 @@ import warnings
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
-
 import torch
-
 from ultralytics.cfg import get_cfg
 from ultralytics.nn.autobackend import check_class_names
 from ultralytics.nn.modules import C2f, Detect, RTDETRDecoder
@@ -102,6 +100,7 @@ def gd_outputs(gd):
     return sorted(f'{x}:0' for x in list(set(name_list) - set(input_list)) if not x.startswith('NoOp'))
 
 
+# 闭包
 def try_export(inner_func):
     """YOLOv8 export decorator, i..e @try_export."""
     inner_args = get_default_args(inner_func)
@@ -117,7 +116,6 @@ def try_export(inner_func):
         except Exception as e:
             LOGGER.info(f'{prefix} export failure ❌ {dt.t:.1f}s: {e}')
             raise e
-
     return outer_func
 
 

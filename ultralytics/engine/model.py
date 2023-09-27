@@ -29,7 +29,6 @@ TASK_MAP = {
 
 
 class YOLO:
-
     def __init__(self, model: Union[str, Path] = 'yolov8n.pt', task=None) -> None:
         # 拿到默认的回调函数的字典
         self.callbacks = callbacks.get_default_callbacks()
@@ -110,6 +109,8 @@ class YOLO:
         # 定义detect任务
         self.model.task = self.task
 
+
+    # 预训练的模型加载
     def _load(self, weights: str, task=None):
         """
         Initializes a new model and infers the task type from the model head.

@@ -37,8 +37,10 @@ class BaseModel(nn.Module):
         Returns:
             (torch.Tensor): The output of the network.
         """
+        # 如果x是包含输入图像的tensor的和gtbox的字典，则选用训练状态
         if isinstance(x, dict):  # for cases of training and validating while training.
             return self.loss(x, *args, **kwargs)
+        # 如果只是image的tensor，直接预测
         return self.predict(x, *args, **kwargs)
 
     def predict(self, x, profile=False, visualize=False, augment=False):
@@ -220,9 +222,8 @@ class DetectionModel(BaseModel):
     # 这里可以添加一个nc参数
     def __init__(self, cfg='yolov8n.yaml', ch=3, nc=None, verbose=True):  # model, input channels, number of classes
         super().__init__()
-        # 如果传进来的是一个字典，则直接使用，如果是别的在加载一下
+        # 如果传进来的是一个字典，则直接使用，如果是别的在加载成字典
         self.yaml = cfg if isinstance(cfg, dict) else yaml_model_load(cfg)  # cfg dict
-
         # Define model
         # 添加模型的输入通道
         ch = self.yaml['ch'] = self.yaml.get('ch', ch)  # input channels
@@ -233,7 +234,9 @@ class DetectionModel(BaseModel):
             self.yaml['nc'] = nc
         # model, savelist
         self.model, self.save = parse_model(deepcopy(self.yaml), ch=ch, verbose=verbose)
+        # name = {0:'0', 1:'1',...}
         self.names = {i: f'{i}' for i in range(self.yaml['nc'])}  # default names dict
+        # 添加一个新的键值对{inplace:True}
         self.inplace = self.yaml.get('inplace', True)
 
         # Build strides
@@ -241,6 +244,7 @@ class DetectionModel(BaseModel):
         if isinstance(m, (Detect, Segment, Pose)):
             s = 256  # 2x min stride
             m.inplace = self.inplace
+            # 这里根据m的类型调用父类的forward(x)
             forward = lambda x: self.forward(x)[0] if isinstance(m, (Segment, Pose)) else self.forward(x)
             m.stride = torch.tensor([s / x.shape[-2] for x in forward(torch.zeros(1, ch, s, s))])  # forward
             self.stride = m.stride
@@ -291,6 +295,8 @@ class DetectionModel(BaseModel):
         y[-1] = y[-1][..., i:]  # small
         return y
 
+
+    # 重写了BaseModel的init_criterion()
     def init_criterion(self):
         return v8DetectionLoss(self)
 
@@ -646,7 +652,7 @@ def attempt_load_one_weight(weight, device=None, inplace=True, fuse=False):
     return model, ckpt
 
 
-# 将yaml文件中转化为pytorch的模型结构
+# 将model文件的字典信息转化为pytorch的模型结构
 def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
     """Parse a YOLO model.yaml dictionary into a PyTorch model."""
     import ast
@@ -669,9 +675,10 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
         # eval()可以将string的参数脱掉字符格式转化为：“【1, 1, 3】”->[1, 1, 3]
         Conv.default_act = eval(act)  # redefine default activation, i.e. Conv.default_act = nn.SiLU()
         if verbose:
-            LOGGER.info(f"{colorstr('activation:')} {act}")  # print
+            LOGGER.info(f"{colorstr('activation:')} {act}")
 
     if verbose:
+        #                    from  n    params  module                                       arguments 打印表头
         LOGGER.info(f"\n{'':>3}{'from':>20}{'n':>3}{'params':>10}  {'module':<45}{'arguments':<30}")
     # [3, ]
     ch = [ch]
@@ -752,12 +759,14 @@ def yaml_model_load(path):
     yaml_file = check_yaml(unified_path, hard=False) or check_yaml(path)
     # 返回一个yolo8.yaml对应的字典
     d = yaml_load(yaml_file)  # model dict
+    # 拿到了模型的scale参数
     d['scale'] = guess_model_scale(path)
     d['yaml_file'] = str(path)
     # d封装的字典就是模型的骨架
     return d
 
 
+# 拿到模型的scale
 def guess_model_scale(model_path):
     """
     Takes a path to a YOLO model's YAML file as input and extracts the size character of the model's scale.
