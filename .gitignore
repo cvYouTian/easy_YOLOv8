@@ -3,6 +3,8 @@
 ./datasets/
 *.mp4
 testfolders
+*.jpg
+*.zip
 #########################################
 __pycache__/
 *.py[cod]

@@ -1,4 +1,5 @@
 import torch
+from PIL import Image
 import torch.nn.functional as F
 import torch.nn as nn
 
@@ -129,6 +130,7 @@ class SCConv(nn.Module):
 
 
 if __name__ == '__main__':
+    x = Image.open("")
     x = torch.randn(1, 32, 16, 16)
     model = SCConv(32)
     print(model(x).shape, model)
