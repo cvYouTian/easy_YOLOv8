@@ -4,13 +4,13 @@ Block modules
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .conv import Conv, DWConv, GhostConv, LightConv, RepConv, PConv
+from .conv import Conv, DWConv, GhostConv, LightConv, RepConv, PConv, SCConv
 from .transformer import TransformerBlock
 
 
 __all__ = ('DFL', 'HGBlock', 'HGStem', 'SPP', 'SPPF', 'C1', 'C2', 'C3', 'C2f', 'C3x', 'C3TR', 'C3Ghost',
            'GhostBottleneck', 'Bottleneck', 'BottleneckCSP', 'Proto', 'RepC3', 'PconvBottleneck', 'FasterC2f_N',
-           'FasterC2f', 'PconvBottleneck_n')
+           'FasterC2f', 'PconvBottleneck_n', "SCConvBottleneck", "SCConv", "SCC2f")
 
 
 # kernel, padding, dilation
@@ -219,6 +219,17 @@ class FasterC2f(C2f):
                                                e=1.0) for _ in range(n))
 
 
+class SCC2f(C2f):
+    """
+    add FasterBlock with 2 SC-convolutions
+    """
+    def __init__(self, c1, c2, n=1, shortcut=False, g=1, e=0.5):  # ch_in, ch_out, number, shortcut, groups, expansion
+        super().__init__(c1, c2, n, shortcut, g, e)
+        self.c = int(c2 * e)
+        self.m = nn.ModuleList(SCConvBottleneck(self.c, self.c, shortcut, g, k=((3, 3), (3, 3)),
+                                               e=1.0) for _ in range(n))
+
+
 class C3(nn.Module):
     """CSP Bottleneck with 3 convolutions."""
 
@@ -353,6 +364,27 @@ class PconvBottleneck_n(nn.Module):
     def forward(self, x):
         """'forward()' applies the YOLOv5 FPN to input data."""
         return x + self.fasterblock(x) if self.add else self.fasterblock(x)
+
+
+class SCConvBottleneck(nn.Module):
+    """add bottleneck of PConv."""
+
+    def __init__(self, c1, c2, shortcut=True, g=1, k=(3, 3), e=0.5):  # ch_in, ch_out, shortcut, groups, kernels, expand
+        super().__init__()
+        # hidden channels
+        # c_ = int(c2 * e)
+        self.SandCRblock = nn.Sequential(
+            SCConv(c1),
+            Conv(c1=c1, c2=c2, k=k[0], s=1, g=g),
+        )
+
+        self.add = shortcut and c1 == c2
+
+    def forward(self, x):
+        """'forward()' applies the YOLOv5 FPN to input data."""
+        return x + self.SandCRblock(x) if self.add else self.SandCRblock(x)
+
+
 
 
 class BottleneckCSP(nn.Module):

@@ -19,7 +19,7 @@ def train():
 
     # Train the model
     # model.train(data="HSTS6.yaml", epochs=150, imgsz=640)
-    model.train(data="VOC.yaml", epochs=150, imgsz=640)
+    model.train(data="HSTS6.yaml", epochs=5, imgsz=640)
 
 
 def onnx():
@@ -142,8 +142,8 @@ def tracker():
 
 
 if __name__ == "__main__":
-    # train()
-    test_video()
+    train()
+    # test_video()
     # test_folders()
     # test_img()
     # tracker()
