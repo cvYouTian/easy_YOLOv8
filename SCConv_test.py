@@ -130,7 +130,28 @@ class SCConv(nn.Module):
 
 
 if __name__ == '__main__':
-    x = Image.open("")
-    x = torch.randn(1, 32, 16, 16)
+    # import numpy
+    from torch import nn
+    from torchvision import transforms
+
+    x = Image.open("../../../bus.jpg")
+    x = x.resize((640, 640))
+    # x.show()
+
+    # PIL to tensor
+    trans = transforms.ToTensor()
+    x = trans(x)
+    x = torch.unsqueeze(x, 0)
+
+    # tensor to PIL
+    # x = torch.squeeze(x, 0)
+    # toPil = transforms.ToPILImage()
+    # x = toPil(x)
+
+    layer = nn.Conv2d(in_channels=3, out_channels=32, kernel_size=(3, 3), stride=2, padding=(1, 1))
+    x = layer(x)
+    # print(x.shape)
+
+    # x = torch.randn(1, 32, 16, 16)
     model = SCConv(32)
     print(model(x).shape, model)

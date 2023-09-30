@@ -5,6 +5,7 @@ from copy import deepcopy
 from pathlib import Path
 
 
+
 def on_pretrain_routine_start(trainer):
     """Called before the pretraining routine starts."""
     pass
@@ -123,3 +124,4 @@ import cv2
 # # print(f"\n{'':>3}{'from':>20}{'n':>3}{'params':>10}  {'module':<45}{'arguments':<30}")
 # assert a>5
 # print(a)
+# print(torch.cuda.is_available())

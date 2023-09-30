@@ -5,6 +5,7 @@
 testfolders
 *.jpg
 *.zip
+SCConv_test.py
 #########################################
 __pycache__/
 *.py[cod]
