@@ -154,4 +154,4 @@ if __name__ == '__main__':
 
     # x = torch.randn(1, 32, 16, 16)
     model = SCConv(32)
-    print(model(x).shape, model)
+    print(model(x).shape)

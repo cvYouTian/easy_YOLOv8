@@ -51,6 +51,7 @@ class Conv(nn.Module):
 #     def forward(self, x):
 #         return self.act(self.bn(self.conv(x)))
 
+
 class Conv2(Conv):
     """Simplified RepConv module with Conv fusing."""
 

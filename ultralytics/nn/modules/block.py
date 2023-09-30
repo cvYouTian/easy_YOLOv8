@@ -371,11 +371,12 @@ class SCConvBottleneck(nn.Module):
 
     def __init__(self, c1, c2, shortcut=True, g=1, k=(3, 3), e=0.5):  # ch_in, ch_out, shortcut, groups, kernels, expand
         super().__init__()
-        # hidden channels
-        # c_ = int(c2 * e)
+        c_ = int(c2 * e)
         self.SandCRblock = nn.Sequential(
             SCConv(c1),
-            Conv(c1=c1, c2=c2, k=k[0], s=1, g=g),
+            Conv(c1=c1, c2=2*c_, k=1, s=1),
+            nn.Conv2d(in_channels=2 * c_, out_channels=c2, kernel_size=1, stride=1, padding=autopad(k=1, p=None, d=1),
+                      groups=g, bias=False)
         )
 
         self.add = shortcut and c1 == c2
