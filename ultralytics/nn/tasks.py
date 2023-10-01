@@ -755,7 +755,7 @@ def yaml_model_load(path):
         path = path.with_name(new_stem + path.suffix)
 
     unified_path = re.sub(r'(\d+)([nslmx])(.+)?$', r'\1\3', str(path))  # i.e. yolov8x.yaml -> yolov8.yaml
-    # 拿到path的绝对路径
+    # 得到yolov8.yaml的绝对路径
     yaml_file = check_yaml(unified_path, hard=False) or check_yaml(path)
     # 返回一个yolo8.yaml对应的字典
     d = yaml_load(yaml_file)  # model dict

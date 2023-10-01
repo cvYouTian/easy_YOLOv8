@@ -3,125 +3,66 @@ import sys
 from collections import defaultdict
 from copy import deepcopy
 from pathlib import Path
+import re
+import yaml
 
 
-
-def on_pretrain_routine_start(trainer):
-    """Called before the pretraining routine starts."""
-    pass
-
-
-def on_pretrain_routine_end(trainer):
-    """Called after the pretraining routine ends."""
-    pass
-
-
-def on_train_start(trainer):
-    """Called when the training starts."""
-    pass
-
-
-def on_train_epoch_start(trainer):
-    """Called at the start of each training epoch."""
-    pass
-
-
-def on_train_batch_start(trainer):
-    """Called at the start of each training batch."""
-    pass
-
-
-def optimizer_step(trainer):
-    """Called when the optimizer takes a step."""
-    pass
-
-
-def on_before_zero_grad(trainer):
-    """Called before the gradients are set to zero."""
-    pass
-
-
-default_callbacks = {
-    # Run in trainer
-    'on_pretrain_routine_start': [on_pretrain_routine_start],
-    'on_pretrain_routine_end': [on_pretrain_routine_end],
-    'on_train_start': [on_train_start],
-    'on_train_epoch_start': [on_train_epoch_start],
-    'on_train_batch_start': [on_train_batch_start],
-    'optimizer_step': [optimizer_step]}
-
-
-
-def get_default_callbacks(x):
+def yaml_save(file='data.yaml', data=None):
     """
-    Return a copy of the default_callbacks dictionary with lists as default values.
+    Save YAML data to a file.
+
+    Args:
+        file (str, optional): File name. Default is 'data.yaml'.
+        data (dict): Data to save in YAML format.
 
     Returns:
-        (defaultdict): A defaultdict with keys from default_callbacks and empty lists as default values.
+        (None): Data is saved to the specified file.
     """
-    return defaultdict(list, deepcopy(default_callbacks))
+    if data is None:
+        data = {}
+    file = Path(file)
+    if not file.parent.exists():
+        # Create parent directories if they don't exist
+        file.parent.mkdir(parents=True, exist_ok=True)
 
-# get_default_callbacks(default_callbacks)
-from pathlib import Path
-# print(type(default_callbacks["on_train_start"]))
-# print(type(default_callbacks.values()))
+    # Convert Path objects to strings
+    for k, v in data.items():
+        if isinstance(v, Path):
+            data[k] = str(v)
 
-# s = "jsdipjgnls"
-#
-# a = s.startswith("nihao/jao/joaj")
-# print(s, a)
-# model = s
-# k = all(x not in model for x in './\\')
-# print(k)
-# file = "helloworld"
-# for f in file if isinstance(file, (list, tuple)) else [file]:
-#     print(1)
-# import glob
-# # FILE = Path(__file__).resolve()
-# # print(FILE.parents[0], FILE.parents[1], FILE.parents[2])
-# ROOT = Path("/home/youtian/Documents/pro/pyCode/easy_YOLOv8/ultralytics")
-# file = "VOC.yaml"
-# files = glob.glob(str(ROOT / 'cfg' / '**' / file), recursive=True)
-# print(files)
-
-# import contextlib
-# from copy import deepcopy
-# from pathlib import Path
-#
-# import torch
-# import torch.nn as nn
-# import logging
-# print(os.getenv("RANK"))
-# a = 1
-# set_logging(LOGGING_NAME, verbose=VERBOSE)  # run before defining LOGGER
-# LOGGER = logging.getLogger(LOGGING_NAME)  # define globally (used in train.py, val.py, detect.py, etc.)
-# LOGGER.info('kjhbn')
-#
-# i = 2
-# # l = [i for i in range(10) if i ==1]
-# for i in range(10) if i ==1 else range(20):
-#     print(i)
-import cv2
-# import torch
-# print(torch.cuda.is_available())
-# print(l)
-
-# cap = cv2.VideoCapture(-1)
-# while cap.isOpened():
-#     _, im = cap.read()
-#     cv2.imshow("shit", im)
-#     if cv2.waitKey(1) == ord('q'):
-#         break
-# cap.release()
-#
+    # Dump data to file in YAML format
+    with open(file, 'w') as f:
+        yaml.safe_dump(data, f, sort_keys=False, allow_unicode=True)
 
 
-# # this is test
-# a = 3
-# import os
-# # print(sys.path[0]+ "ll")
-# # print(os.mkdir("./kk"))
-# # print(f"\n{'':>3}{'from':>20}{'n':>3}{'params':>10}  {'module':<45}{'arguments':<30}")
-# assert a>5
-# print(a)
-# print(torch.cuda.is_available())
+def yaml_load(file='data.yaml', append_filename=False):
+    with open(file, errors='ignore', encoding='utf-8') as f:
+        # 打开yolo8.yaml,read（）是以字符串的形式输出
+        s = f.read()
+        # print(s)
+
+        # Remove special characters
+        if not s.isprintable():
+            # print(s.isprintable())
+            s = re.sub(r'[^\x09\x0A\x0D\x20-\x7E\x85\xA0-\uD7FF\uE000-\uFFFD\U00010000-\U0010ffff]+', '', s)
+
+        # Add YAML filename to dict and return
+        return {**yaml.safe_load(s), 'yaml_file': str(file)} if append_filename else yaml.safe_load(s)
+
+def find_nonprintable_chars(string):
+    for char in string:
+        ascii_value = ord(char)
+        if ascii_value < 32:
+            print(f"发现非可打印字符: {char} (ASCII值: {ascii_value})")
+
+
+if __name__ == '__main__':
+
+    ya = yaml_load(file="/home/youtian/Documents/pro/pyCode/easy_YOLOv8/ultralytics/cfg/models/v8/yolov8.yaml")
+    # s = "**##H\tello \n ####@ World!"
+    # print(find_nonprintable_chars(s))
+    # # print(s.isprintable())
+    #
+    # s = re.sub(r'[^\x09\x0A\x0D\x20-\x7E\x85\xA0-\uD7FF\uE000-\uFFFD\U00010000-\U0010ffff]+', '', s)
+    # print(ya)
+

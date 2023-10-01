@@ -327,6 +327,7 @@ def yaml_load(file='data.yaml', append_filename=False):
         (dict): YAML data and file name.
     """
     with open(file, errors='ignore', encoding='utf-8') as f:
+        # 打开yolo8.yaml,逐行组成列表
         s = f.read()  # string
 
         # Remove special characters

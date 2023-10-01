@@ -4,6 +4,8 @@ import time
 from pathlib import Path
 from typing import Union
 import cv2
+import netron
+import time
 from tqdm import tqdm
 from ultralytics import YOLO
 
@@ -22,13 +24,18 @@ def train():
     model.train(data="HSTS6.yaml", epochs=5, imgsz=640)
 
 
-def onnx():
-    # Load a model
-    # model = YOLO('yolov8n.pt')  # load an official model
-    model = YOLO('/home/you/Desktop/YOLOv8/easy_YOLOv8/runs/detect/m6/weights/best.pt')  # load a custom trained
-
-    # Export the model
-    model.export(format='onnx')
+def onnx(path: Union[str, Path], ):
+    # you need install numpy==1.24.3 ,otherwise it will report Error
+    onnxpath = Path(path).with_suffix(".onnx")
+    print(onnxpath)
+    if not onnxpath.exists():
+        model = YOLO(path)
+        # Export the model
+        model.export(format='onnx')
+    try:
+        netron.start(str(onnxpath))
+    except Exception as e:
+        print(e)
 
 
 def test_img():
@@ -135,7 +142,7 @@ def tracker():
     # #     show=True,
     # # )
     #
-    # for result in model.track(source="vid.mp4"):
+    # for result in model.track(source="vid.mp4"):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
     #     print(
     #         result.boxes.id.cpu().numpy().astype(int)
     #     )
@@ -147,6 +154,6 @@ if __name__ == "__main__":
     # test_folders()
     # test_img()
     # tracker()
-    # onnx()
+    # onnx(path = '/home/youtian/Documents/pro/pyCode/easy_YOLOv8/runs/detect/train4/weights/best.pt')
 
-    # netron.start("/YOLOv8/runs/detect/m6re/weights/best.onnx")
+    #
