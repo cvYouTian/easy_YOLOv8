@@ -374,9 +374,9 @@ class SCConvBottleneck(nn.Module):
         c_ = int(c2 * e)
         self.SandCRblock = nn.Sequential(
             SCConv(c1),
-            Conv(c1=c1, c2=2*c_, k=1, s=1),
-            nn.Conv2d(in_channels=2 * c_, out_channels=c2, kernel_size=1, stride=1, padding=autopad(k=1, p=None, d=1),
-                      groups=g, bias=False)
+            Conv(c1=c1, c2=c2, k=1, s=1),
+            # nn.Conv2d(in_channels=2 * c_, out_channels=c2, kernel_size=1, stride=1, padding=autopad(k=1, p=None, d=1),
+            #           groups=g, bias=False)
         )
 
         self.add = shortcut and c1 == c2

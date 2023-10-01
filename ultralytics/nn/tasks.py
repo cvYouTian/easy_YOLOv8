@@ -8,12 +8,14 @@ from ultralytics.nn.modules import (AIFI, C1, C2, C3, C3TR, SPP, SPPF, Bottlenec
                                     Focus, GhostBottleneck, GhostConv, HGBlock, HGStem, Pose, RepC3, RepConv,
                                     RTDETRDecoder, Segment, PConv, FasterC2f_N, FasterC2f, PconvBottleneck,
                                     PconvBottleneck_n, SCConv, SCConvBottleneck, SCC2f)
+
 from ultralytics.utils import DEFAULT_CFG_DICT, DEFAULT_CFG_KEYS, LOGGER, colorstr, emojis, yaml_load
 from ultralytics.utils.checks import check_requirements, check_suffix, check_yaml
 from ultralytics.utils.loss import v8ClassificationLoss, v8DetectionLoss, v8PoseLoss, v8SegmentationLoss
 from ultralytics.utils.plotting import feature_visualization
 from ultralytics.utils.torch_utils import (fuse_conv_and_bn, fuse_deconv_and_bn, initialize_weights, intersect_dicts,
                                            make_divisible, model_info, scale_img, time_sync)
+
 
 try:
     import thop
@@ -344,7 +346,6 @@ class PoseModel(DetectionModel):
 
 class ClassificationModel(BaseModel):
     """YOLOv8 classification model."""
-
     def __init__(self,
                  cfg=None,
                  model=None,

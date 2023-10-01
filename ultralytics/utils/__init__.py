@@ -24,7 +24,7 @@ import yaml
 from ultralytics import __version__
 
 # PyTorch Multi-GPU DDP Constants
-# 调取RANK的值，如果不存在则设置为-1
+# 调取RANK的值，如果不存在则设置为-1=
 RANK = int(os.getenv('RANK', -1))
 LOCAL_RANK = int(os.getenv('LOCAL_RANK', -1))  # https://pytorch.org/docs/stable/elastic/run.html
 WORLD_SIZE = int(os.getenv('WORLD_SIZE', 1))
@@ -314,18 +314,9 @@ def yaml_save(file='data.yaml', data=None):
     with open(file, 'w') as f:
         yaml.safe_dump(data, f, sort_keys=False, allow_unicode=True)
 
+
 # 将yaml文件转成一个字典
 def yaml_load(file='data.yaml', append_filename=False):
-    """
-    Load YAML data from a file.
-
-    Args:
-        file (str, optional): File name. Default is 'data.yaml'.
-        append_filename (bool): Add the YAML filename to the YAML dictionary. Default is False.
-
-    Returns:
-        (dict): YAML data and file name.
-    """
     with open(file, errors='ignore', encoding='utf-8') as f:
         # 打开yolo8.yaml,逐行组成列表
         s = f.read()  # string
