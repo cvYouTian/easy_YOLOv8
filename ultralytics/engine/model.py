@@ -91,6 +91,7 @@ class YOLO:
             verbose (bool): display model info on load
         """
         # 返回字典d
+        # # {'nc': 6, 'scales': [1.0, 1.0, 512], 'backbone':[], "head":[], "yaml_file": "./././"}
         cfg_dict = yaml_model_load(cfg)
         self.cfg = cfg
         # detect

@@ -222,12 +222,15 @@ class BaseModel(nn.Module):
 class DetectionModel(BaseModel):
     """YOLOv8 detection model."""
     # 这里可以添加一个nc参数
+    # cfg_dict, verbose = verbose and RANK == -1
     def __init__(self, cfg='yolov8n.yaml', ch=3, nc=None, verbose=True):  # model, input channels, number of classes
         super().__init__()
         # 如果传进来的是一个字典，则直接使用，如果是别的在加载成字典
         self.yaml = cfg if isinstance(cfg, dict) else yaml_model_load(cfg)  # cfg dict
         # Define model
         # 添加模型的输入通道
+        # {'nc': 6, 'scales': [1.0, 1.0, 512], 'backbone':[], "head":[], "yaml_file": "./././", "ch": 3}
+        # ch = 3
         ch = self.yaml['ch'] = self.yaml.get('ch', ch)  # input channels
         if nc and nc != self.yaml['nc']:
             LOGGER.info(f"Overriding model.yaml nc={self.yaml['nc']} with nc={nc}")
@@ -654,13 +657,15 @@ def attempt_load_one_weight(weight, device=None, inplace=True, fuse=False):
 
 
 # 将model文件的字典信息转化为pytorch的模型结构
-def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
+def parse_model(d, ch, verbose=True):  # {'nc': 6, 'scales': [1.0, 1.0, 512], 'backbone':[], "head":[],
+    # "yaml_file": "./././", "ch": 3} ch= 3, True
     """Parse a YOLO model.yaml dictionary into a PyTorch model."""
     import ast
 
     # Args
     max_channels = float('inf')
-    # 获得'nc', 'activation', 'scales'
+    # 获得'nc=6', 'activation=NONE', 'scales=[1.0, 1.0, 512]'
+    # 使用.get的方法拿到字典的值, 如果key不存在, 则不会报错,会用NONE来填充Value
     nc, act, scales = (d.get(x) for x in ('nc', 'activation', 'scales'))
     # 添加depth, width, kpt_shape为1.0
     depth, width, kpt_shape = (d.get(x, 1.0) for x in ('depth_multiple', 'width_multiple', 'kpt_shape'))
@@ -692,12 +697,13 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
             if isinstance(a, str):
                 with contextlib.suppress(ValueError):
                     args[j] = locals()[a] if a in locals() else ast.literal_eval(a)
-
+        # 设计模块的重复次数
         n = n_ = max(round(n * depth), 1) if n > 1 else n  # depth gain
         # add FasterC2f and PconvBottleneck and PConv
         if m in (Classify, Conv, ConvTranspose, GhostConv, Bottleneck, GhostBottleneck, SPP, SPPF, DWConv, Focus,
                  BottleneckCSP, C1, C2, C2f, C3, C3TR, C3Ghost, nn.ConvTranspose2d, DWConvTranspose2d, C3x, RepC3,
                  FasterC2f_N, FasterC2f, PconvBottleneck, PconvBottleneck_n, PConv, SCConv, SCConvBottleneck, SCC2f):
+            # 把上一层的信息和输出的通道数拿到
             c1, c2 = ch[f], args[0]
             if c2 != nc:  # if c2 not equal to number of classes (i.e. for Classify() output)
                 c2 = make_divisible(min(c2, max_channels) * width, 8)
@@ -762,8 +768,10 @@ def yaml_model_load(path):
     d = yaml_load(yaml_file)  # model dict
     # 拿到了模型的scale参数
     d['scale'] = guess_model_scale(path)
+    # 添加一个key（'yaml_file'）
     d['yaml_file'] = str(path)
     # d封装的字典就是模型的骨架
+    # {'nc': 6, 'scales': [1.0, 1.0, 512], 'backbone':[], "head":[], "yaml_file": "./././"}
     return d
 
 
