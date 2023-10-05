@@ -149,8 +149,8 @@ def tracker():
 
 
 if __name__ == "__main__":
-    train()
-    # test_video()
+    # train()
+    test_video()
     # test_folders()
     # test_img()
     # tracker()

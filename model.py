@@ -1,19 +1,21 @@
 import torch
+from typing import Union
 from torch import nn
 
 
 class Conv(nn.Module):
-    def __init__(self, i=None, o=None, k=None, s=None, p=None):
+    def __init__(self, input: int, output: int, kernel_size: Union[int, tuple, list] = (1, 1),
+                 stride: int = 1, padding: Union[int, None] = None, ):
         super().__init__()
-        self.conv = nn.Conv2d(in_channels=i, out_channels=o, kernel_size=k, stride=s,
-                              padding=self.autopad(k, p), bias=False)
-        self.batchnorm = nn.BatchNorm2d(o)
+        self.conv = nn.Conv2d(in_channels=input, out_channels=output, kernel_size=kernel_size, stride=stride,
+                              padding=self.autopadding(kernel_size, padding), bias=False)
+        self.batchnorm = nn.BatchNorm2d(output)
         self.silu = nn.SiLU()
 
     @staticmethod
-    def autopad(kernelsize,pad=None):
+    def autopadding(kernel_size, pad=None):
         if pad is None:
-            pad = kernelsize // 2 if isinstance(kernelsize, int) else [x // 2 for x in kernelsize]
+            pad = kernel_size // 2 if isinstance(kernel_size, int) else [x // 2 for x in kernel_size]
         return pad
 
     def forward(self, x):
@@ -23,7 +25,7 @@ class Conv(nn.Module):
 class SPPF(nn.Module):
     def __init__(self, in_channel=512, out_channel=512):
         super().__init__()
-        self.conv = Conv(i=in_channel, o=out_channel, k=1, s=1, p=0)
+        self.conv = Conv(i=in_channel, o=out_channel, k=[1, 1], s=1, p=None)
         self.maxpooling = nn.MaxPool2d(kernel_size=5, stride=1, padding=2)
     def forward(self, x):
         x0 = self.conv(x)
@@ -73,12 +75,13 @@ class C2f(nn.Module):
         x2 = (i(x) for i in self.bottleneck)
         x3 = torch.cat(())
 
+
 class YOLOv8l(nn.Module):
     def __init__(self):
         super().__init__()
         # backbone
-        self.conv0 = Conv(i=3, o=64, k=3, s=2, p=1)
-        self.conv1 = Conv(i=64, o=128, k=3, s=2, p=1)
+        self.conv0 = Conv(input=3, output=64, kernel_size=3, stride=2, padding=None)
+        self.conv1 = Conv(input=64, output=128, kernel_size=3, stride=2, padding=None)
         self.c2f_2 = C2f(shortcut=True, Block=3, in_channel=128, out_channel=128)
         self.conv3 = Conv(i=128, o=256, k=3, s=2, p=1)
         self.c2f_4 = C2f(shortcut=True, Block=6, in_channel=256, out_channel=256)
@@ -124,7 +127,7 @@ class YOLOv8l(nn.Module):
         x19 = self.conv19(x18)
         x20 = torch.cat((x9, x19), 1)
         x21 = self.c2f_21(x20)
-        return x15, x18, x21
+        return x15
 
 
 
