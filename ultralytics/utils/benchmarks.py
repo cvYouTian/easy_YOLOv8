@@ -358,6 +358,5 @@ class ProfileModels:
 if __name__ == '__main__':
     # Benchmark all export formats
     benchmark()
-
     # Profiling models on ONNX and TensorRT
     ProfileModels(['yolov8n.yaml', 'yolov8s.yaml'])
