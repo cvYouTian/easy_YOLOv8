@@ -1,6 +1,5 @@
 # Byte-compiled / optimized / DLL files
 
-./datasets/
 *.mp4
 testfolders
 *.jpg
@@ -141,7 +140,7 @@ dmypy.json
 .pyre/
 
 # datasets and projects
-datasets/
+# datasets/
 runs/
 wandb/
 .DS_Store
