@@ -12,7 +12,7 @@ from ultralytics import YOLO
 
 def train():
     # Load a model
-    model = YOLO('yolov8l.yaml')
+    model = YOLO('Faster-YOLOv8n.yaml')
     # model = YOLO('yolov8m.pt')
     
     # 做预训练
@@ -149,8 +149,8 @@ def tracker():
 
 
 if __name__ == "__main__":
-    # train()
-    test_video()
+    train()
+    # test_video()
     # test_folders()
     # test_img()
     # tracker()
