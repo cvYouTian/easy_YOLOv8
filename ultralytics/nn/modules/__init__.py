@@ -15,10 +15,14 @@ os.system(f'onnxsim {f} {f} && open {f}')
 
 from .block import (C1, C2, C3, C3TR, DFL, SPP, SPPF, Bottleneck, BottleneckCSP, C2f, C3Ghost, C3x, GhostBottleneck,
                     HGBlock, HGStem, Proto, RepC3, PconvBottleneck, PconvBottleneck_n, FasterC2f_N, FasterC2f, SCC2f,
-                    SCConvBottleneck, SC_PW_C2f, SC_PW_Bottleneck, SC_Conv3_Bottleneck, SC_Conv3_C2f)
+                    SCConvBottleneck, SC_PW_C2f, SC_PW_Bottleneck, SC_Conv3_Bottleneck, SC_Conv3_C2f,
+                    Conv3_SC_Bottleneck, Conv3_SC_C2f)
+
 from .conv import (CBAM, ChannelAttention, Concat, Conv, Conv2, ConvTranspose, DWConv, DWConvTranspose2d, Focus,
                    GhostConv, LightConv, RepConv, SpatialAttention, PConv, SCConv)
+
 from .head import Classify, Detect, Pose, RTDETRDecoder, Segment
+
 from .transformer import (AIFI, MLP, DeformableTransformerDecoder, DeformableTransformerDecoderLayer, LayerNorm2d,
                           MLPBlock, MSDeformAttn, TransformerBlock, TransformerEncoderLayer, TransformerLayer)
 
@@ -29,4 +33,4 @@ __all__ = ('Conv', 'Conv2', 'LightConv', 'RepConv', 'DWConv', 'DWConvTranspose2d
            'Segment', 'Pose', 'Classify', 'TransformerEncoderLayer', 'RepC3', 'RTDETRDecoder', 'AIFI',
            'DeformableTransformerDecoder', 'DeformableTransformerDecoderLayer', 'MSDeformAttn', 'MLP', 'PConv',
            'PconvBottleneck', 'PconvBottleneck_n', 'FasterC2f_N', 'FasterC2f', "SCConv", "SCConvBottleneck", "SCC2f",
-           "SC_PW_Bottleneck", "SC_PW_C2f", "SC_Conv3_Bottleneck", "SC_Conv3_C2f")
+           "SC_PW_Bottleneck", "SC_PW_C2f", "SC_Conv3_Bottleneck", "SC_Conv3_C2f", "Conv3_SC_Bottleneck", "Conv3_SC_C2f")

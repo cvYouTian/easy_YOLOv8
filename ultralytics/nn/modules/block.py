@@ -11,7 +11,7 @@ from .transformer import TransformerBlock
 __all__ = ('DFL', 'HGBlock', 'HGStem', 'SPP', 'SPPF', 'C1', 'C2', 'C3', 'C2f', 'C3x', 'C3TR', 'C3Ghost',
            'GhostBottleneck', 'Bottleneck', 'BottleneckCSP', 'Proto', 'RepC3', 'PconvBottleneck', 'FasterC2f_N',
            'FasterC2f', 'PconvBottleneck_n', "SCConvBottleneck", "SCConv", "SCC2f", "SC_PW_Bottleneck", "SC_PW_C2f",
-           "SC_Conv3_C2f", "SC_Conv3_Bottleneck")
+           "SC_Conv3_C2f", "SC_Conv3_Bottleneck", "Conv3_SC_C2f", "Conv3_SC_Bottleneck")
 
 
 # kernel, padding, dilation
@@ -244,7 +244,7 @@ class SC_PW_C2f(C2f):
 
 class SC_Conv3_C2f(C2f):
     """
-    add FasterBlock with 2 SC-convolutions
+    add SCCBlock with 2 SC-convolutions
     """
     def __init__(self, c1, c2, n=1, shortcut=False, g=1, e=0.5):  # ch_in, ch_out, number, shortcut, groups, expansion
         super().__init__(c1, c2, n, shortcut, g, e)
@@ -252,6 +252,15 @@ class SC_Conv3_C2f(C2f):
         self.m = nn.ModuleList(SC_Conv3_Bottleneck(self.c, self.c, shortcut, g, k=((3, 3), (3, 3)),
                                                e=1.0) for _ in range(n))
 
+class Conv3_SC_C2f(C2f):
+    """
+    add SCBlock with SC-convolutions
+    """
+    def __init__(self, c1, c2, n=1, shortcut=False, g=1, e=0.5):  # ch_in, ch_out, number, shortcut, groups, expansion
+        super().__init__(c1, c2, n, shortcut, g, e)
+        self.c = int(c2 * e)
+        self.m = nn.ModuleList(Conv3_SC_Bottleneck(self.c, self.c, shortcut, g, k=((3, 3), (3, 3)),
+                                               e = 1.0) for _ in range(n))
 
 class C3(nn.Module):
     """CSP Bottleneck with 3 convolutions."""
@@ -436,6 +445,25 @@ class SC_Conv3_Bottleneck(nn.Module):
         self.SandCRblock = nn.Sequential(
             SCConv(c1),
             Conv(c1=c1, c2=c2, k=3, s=1, p=autopad(k=3, d=1), g=g)
+        )
+        self.add = shortcut and c1 == c2
+
+    def forward(self, x):
+        """'forward()' applies the YOLOv5 FPN to input data."""
+        return x + self.SandCRblock(x) if self.add else self.SandCRblock(x)
+
+
+class Conv3_SC_Bottleneck(nn.Module):
+    """add bottleneck of SCConv_Conv3_Bottleneck."""
+
+    def __init__(self, c1, c2, shortcut=True, g=1, k=(3, 3), e=0.5):
+        super().__init__()
+
+        self.SandCRblock = nn.Sequential(
+            Conv(c1=c1, c2=c2, k=3, s=1, p=autopad(k=3, d=1), g=g),
+            SCConv(c2),
+            # nn.Conv2d(in_channels=c2, out_channels=c2, kernel_size=1, stride=1, padding=autopad(k=1, p=None, d=1),
+            #           groups=g, bias=False)
         )
         self.add = shortcut and c1 == c2
 
