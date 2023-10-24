@@ -1,6 +1,4 @@
-# Ultralytics YOLO 🚀, AGPL-3.0 license
-
-from itertools import repeat
+# Ultralytics YOLO 🚀, AGPL-3.0 licensefrom itertools import repeat
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
 
