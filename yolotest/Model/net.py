@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Union
 from torch import nn
+import logging.config
 
 
 TASK_MAP = (DetectionModel, DetectionTrainer, DetectionValidator,DetectionPredictor)
@@ -32,6 +33,9 @@ class YOLOv8:
         if suffix == ".pt":
             self.model, ckpt = self.attempt_one_weight(weight)
         else:
+
+
+
 
 
     def __scratch(self, model):
