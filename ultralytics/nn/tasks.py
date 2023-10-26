@@ -630,6 +630,7 @@ def attempt_load_weights(weights, device=None, inplace=True, fuse=False):
     return ensemble
 
 
+# 加载预训练权重
 def attempt_load_one_weight(weight, device=None, inplace=True, fuse=False):
     """Loads a single model weights."""
     ckpt, weight = torch_safe_load(weight)  # load ckpt

@@ -56,6 +56,7 @@ class YOLO:
         suffix = Path(model).suffix
         # 判断suffix不再stem之中而主干部分在
         # add suffix, i.e. yolov8n -> yolov8n.pt
+        # 处理不加suffix的情况
         if not suffix and Path(model).stem in GITHUB_ASSET_STEMS:
             model, suffix = Path(model).with_suffix('.pt'), '.pt'
         # 如果是.yaml的文件格式则使用scratsh从头训练
