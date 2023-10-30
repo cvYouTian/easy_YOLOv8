@@ -154,6 +154,7 @@ class IterableSimpleNamespace(SimpleNamespace):
         """Return a human-readable string representation of the object."""
         return '\n'.join(f'{k}={v}' for k, v in vars(self).items())
 
+
     def __getattr__(self, attr):
         """Custom attribute access error message with helpful information."""
         name = self.__class__.__name__
