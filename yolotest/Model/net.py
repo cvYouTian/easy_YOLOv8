@@ -19,7 +19,7 @@ class Conv(nn.Module):
                               out_channels=output_chanel,
                               kernel_size=kernel_size,
                               stride=stride,
-                              padding=self.autopadding(kernel_size, padding),
+                              padding=auto_padding(kernel_size, padding),
                               bias=False)
         self.BN = nn.BatchNorm2d(output_chanel)
         self.silu = nn.SiLU()
@@ -30,9 +30,9 @@ class Conv(nn.Module):
 
 class SPPF(nn.Module):
     def __init__(self, in_channel=512, out_channel=512):
-        super().__init__()
-        self.conv = Conv(i=in_channel, o=out_channel, k=[1, 1], s=1, p=None)
-        self.maxpooling = nn.MaxPool2d(kernel_size=5, stride=1, padding=2)
+        super(SPPF, self).__init__()
+        self.conv = Conv(in_channel, out_channel,(1, 1), 1, padding=auto_padding(1, None))
+        self.maxpooling = nn.MaxPool2d(kernel_size=5, stride=1, padding=auto_padding(5, None))
     def forward(self, x):
         x0 = self.conv(x)
         x1 = self.maxpooling(x0)
@@ -74,11 +74,8 @@ class Bottleneck(nn.Module):
 
 
 class C2f(nn.Module):
-    def __init__(self, shortcut: bool = True, Block: int=1, in_channel=None, out_channel=None):
+    def __init__(self, shortcut: bool, block: int, in_channel, out_channel):
         super(C2f, self).__init__()
-        self.shortcut = shortcut
-        self.in_channel = in_channel
-        self.out_channel = out_channel
         self.conv1 = Conv(input_chanel=in_channel,
                           output_chanel=out_channel,
                           kernel_size=1,
@@ -89,67 +86,65 @@ class C2f(nn.Module):
                           kernel_size=1,
                           stride=1,
                           padding=auto_padding(kernel_size=1, pad=None))
-        self.bottleneck = nn.ModuleList(Bottleneck(shortcut=shortcut,
-                                                   in_channel=self.out_channel*0.5,
-                                                   out_channel=self.out_channel*0.5) for _ in range(Block))
+        self.bottleneck = nn.ModuleList([
+            Bottleneck(shortcut, out_channel*0.5, out_channel*0.5) for _ in range(block)])
 
     def forward(self, x):
+        x = self.conv1(x)
         x0, x1 = torch.split(x, [self.out_channel*0.5, self.out_channel*0.5], dim=1)
-        x2 = (i(x) for i in self.bottleneck)
-        x3 = torch.cat(())
+        x2 = [i(x) for i in self.bottleneck]
+        x3 = torch.cat(x2, dim=1)
 
 
 class YOLOv8l(nn.Module):
     def __init__(self):
-        super().__init__()
+        super(YOLOv8l, self).__init__()
         # backbone
-        self.backbone = nn.Sequential(
-        Conv(input_chanel=3, output_chanel=64, kernel_size=3, stride=2, padding=auto_padding(kernel_size=3, pad=None)),
-        Conv(input_chanel=64, output_chanel=128, kernel_size=3, stride=2, padding=auto_padding(kernel_size=3, pad=None)),
-        C2f(shortcut=True, Block=3, in_channel=128, out_channel=128),
-        Conv(input_chanel=128, output_chanel=256, kernel_size=3, stride=2, padding=auto_padding(kernel_size=3, pad=None)),
-        C2f(shortcut=True, Block=6, in_channel=256, out_channel=256),
-        Conv(i=256, o=512, k=3, s=2, p=1),
-        C2f(shortcut=True, Block=6, in_channel=512, out_channel=512),
-        Conv(i=512, o=512, k=3, s=2, p=1),
-        C2f(shortcut=True, Block=3, in_channel=512, out_channel=512),
-        SPPF(in_channel=512, out_channel=512))
+        self.conv_0 = Conv(3, 64,3, 2,
+                          padding=auto_padding(kernel_size=3, pad=None)),
+        self.conv_1 = Conv(64, 128, 3, 2,
+                          padding=auto_padding(kernel_size=3, pad=None)),
+        self.c2f_2 = C2f(True, 3, 128, 128),
+        self.conv_3 = Conv(128, 256, 3, 2,
+                          padding=auto_padding(kernel_size=3, pad=None)),
+        self.c2f_4 = C2f(True, 6, 256, 256),
+        self.conv_5 = Conv(256, 512, 3, 2,
+                          padding=auto_padding(kernel_size=3, pad=None)),
+        self.c2f_6 = C2f(True, 6, 512, 512),
+        self.conv_7 = Conv(512, 512, 3, 2,
+                          padding=auto_padding(kernel_size=3, pad=None)),
+        self.c2f_8 = C2f(True, 3, 512, 512),
+        self.sppf_9 = SPPF(512, 512)
 
         # head
-        self.upsample = nn.Upsample(scale_factor=2)
-        self.c2f_12 = C2f(shortcut=False, Block=3, in_channel=1024, out_channel=512)
-        self.c2f_15 = C2f(shortcut=False, Block=3, in_channel=512, out_channel=512)
-        self.conv16 = Conv(i=256, o=256, k=3, s=2, p=1)
-        self.c2f_18 = C2f(shortcut=False, Block=3, in_channel=512, out_channel=512)
-        self.conv19 = Conv(i=512, o=512, k=3, s=2, p=1)
-        self.c2f_21 = C2f(shortcut=False, Block=3, in_channel=1024, out_channel=512)
-    @staticmethod
-    def Detect():
-        pass
+        self.upsample = nn.Upsample(2)
+        self.c2f_12 = C2f(False, 3, 1024, 512)
+        self.c2f_15 = C2f(False, 3, 512, 512)
+        self.conv_16 = Conv(256, 256, 3, 2,
+                           padding=auto_padding(3, None))
+        self.c2f_18 = C2f(False, 3, 512, 512)
+        self.conv_19 = Conv(512, 512, 3, 2,
+                           padding=auto_padding(3, None))
+        self.c2f_21 = C2f(False, 3, 1024, 512)
 
     def forward(self, x):
-        x0 = self.conv0(x)
-        x1 = self.conv1(x0)
-        x2 = self.c2f_2(x1)
-        x3 = self.conv3(x2)
-        x4 = self.c2f_4(x3)
-        x5 = self.conv5(x4)
-        x6 = self.c2f_6(x5)
-        x7 = self.conv7(x6)
-        x8 = self.c2f_8(x7)
-        x9 = self.sppf_9(x8)
-        x10 = self.upsample(x9)
-        x11 = torch.cat((x6, x10), 1)
+        p1 = self.conv_0(x)
+        p2 = self.conv_1(p1)
+        x = self.c2f_2(p2)
+
+
+        x10 = self.upsample()
+        x11 = torch.cat((x, x10), 1)
         x12 = self.c2f_12(x11)
         x13 = self.upsample(x12)
         x14 = torch.cat((x4, x13), 1)
         x15 = self.c2f_15(x14)
 
-        x16 = self.conv16(x15)
+        x16 = self.conv_16(x15)
         x17 = torch.cat((x12, x16), 1)
         x18 = self.c2f_18(x17)
 
-        x19 = self.conv19(x18)
+        x19 = self.conv_19(x18)
         x20 = torch.cat((x9, x19), 1)
         x21 = self.c2f_21(x20)
         return x15
