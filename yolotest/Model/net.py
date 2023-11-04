@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+import torch.nn.functional as F
 from typing import Union
 
 
@@ -9,11 +10,11 @@ def auto_padding(kernel_size, pad=None):
     return pad
 
 class Conv(nn.Module):
-    def __init__(self, input_chanel: int,
-                 output_chanel: int,
-                 kernel_size: Union[int, tuple, list] = (1, 1),
-                 stride: int = 1,
-                 padding: Union[int, None] = None):
+    def __init__(self, input_chanel,
+                 output_chanel,
+                 kernel_size: Union[int, tuple, list],
+                 stride: int,
+                 padding: Union[int, None]):
         super(Conv, self).__init__()
         self.conv = nn.Conv2d(in_channels=input_chanel,
                               out_channels=output_chanel,
@@ -22,16 +23,15 @@ class Conv(nn.Module):
                               padding=auto_padding(kernel_size, padding),
                               bias=False)
         self.BN = nn.BatchNorm2d(output_chanel)
-        self.silu = nn.SiLU()
 
     def forward(self, x):
-        return self.silu(self.BN(self.conv(x)))
+        return F.silu(self.BN(self.conv(x)))
 
 
 class SPPF(nn.Module):
     def __init__(self, in_channel=512, out_channel=512):
         super(SPPF, self).__init__()
-        self.conv = Conv(in_channel, out_channel,(1, 1), 1, padding=auto_padding(1, None))
+        self.conv = Conv(in_channel, out_channel, (1, 1), 1, padding=auto_padding(1, None))
         self.maxpooling = nn.MaxPool2d(kernel_size=5, stride=1, padding=auto_padding(5, None))
     def forward(self, x):
         x0 = self.conv(x)
@@ -52,11 +52,11 @@ class Bottleneck(nn.Module):
         super(Bottleneck, self).__init__()
         self.shortcut = shortcut
         self.conv1 = Conv(input_chanel=in_channel,
-                          output_chanel=out_channel*0.5,
+                          output_chanel=int(out_channel*0.5),
                           kernel_size=kernel_size,
                           stride=1,
                           padding=auto_padding(kernel_size=kernel_size))
-        self.conv2 = Conv(input_chanel=out_channel*0.5,
+        self.conv2 = Conv(input_chanel=int(out_channel*0.5),
                           output_chanel=out_channel,
                           kernel_size=kernel_size,
                           stride=1,
@@ -74,27 +74,32 @@ class Bottleneck(nn.Module):
 
 
 class C2f(nn.Module):
-    def __init__(self, shortcut: bool, block: int, in_channel, out_channel):
+    def __init__(self,shortcut: bool, block: int, in_channel, out_channel):
         super(C2f, self).__init__()
         self.conv1 = Conv(input_chanel=in_channel,
                           output_chanel=out_channel,
                           kernel_size=1,
                           stride=1,
                           padding=auto_padding(kernel_size=1, pad=None))
-        self.conv2 = Conv(input_chanel=out_channel*0.5*3,
+        self.conv2 = Conv(input_chanel=int(out_channel*0.5*3),
                           output_chanel=out_channel,
                           kernel_size=1,
                           stride=1,
                           padding=auto_padding(kernel_size=1, pad=None))
-        self.bottleneck = nn.ModuleList([
-            Bottleneck(shortcut, out_channel*0.5, out_channel*0.5) for _ in range(block)])
+        self.bottleneck = nn.ModuleList(
+            [Bottleneck(int(out_channel*0.5), int(out_channel*0.5), shortcut) for _ in range(block)])
 
     def forward(self, x):
-        x = self.conv1(x)
-        x0, x1 = torch.split(x, [self.out_channel*0.5, self.out_channel*0.5], dim=1)
-        x2 = [i(x) for i in self.bottleneck]
-        x3 = torch.cat(x2, dim=1)
+        module = list(self.conv1(x).chunk(2, 1))
+        module.extend(m(module[-1]) for m in self.bottleneck)
+        x = self.conv2(torch.cat(module, 1))
+        return x
 
+        # x = self.conv1(x)
+        # x0, x1 = torch.split(x, [self.out_channel*0.5, self.out_channel*0.5], dim=1)
+        # x2 = [i(x) for i in self.bottleneck]
+        # x3 = torch.cat(x2, dim=1)
+        #
 
 class YOLOv8l(nn.Module):
     def __init__(self):
@@ -128,13 +133,20 @@ class YOLOv8l(nn.Module):
         self.c2f_21 = C2f(False, 3, 1024, 512)
 
     def forward(self, x):
+        # backbone
         p1 = self.conv_0(x)
         p2 = self.conv_1(p1)
-        x = self.c2f_2(p2)
-
-
-        x10 = self.upsample()
-        x11 = torch.cat((x, x10), 1)
+        x2 = self.c2f_2(p2)
+        p3 = self.conv_3(x2)
+        x4 = self.c2f_4(p3)
+        p4 = self.conv_5(x4)
+        x6 = self.c2f_6(p4)
+        p5 = self.conv_7(x6)
+        x8 = self.c2f_8(p5)
+        sppf = self.sppf_9(x8)
+        # neck
+        x10 = self.upsample(sppf)
+        x11 = torch.cat((x6, x10), 1)
         x12 = self.c2f_12(x11)
         x13 = self.upsample(x12)
         x14 = torch.cat((x4, x13), 1)
@@ -145,9 +157,9 @@ class YOLOv8l(nn.Module):
         x18 = self.c2f_18(x17)
 
         x19 = self.conv_19(x18)
-        x20 = torch.cat((x9, x19), 1)
+        x20 = torch.cat((sppf, x19), 1)
         x21 = self.c2f_21(x20)
-        return x15
+        return x15, x18, x21
 
 
 
