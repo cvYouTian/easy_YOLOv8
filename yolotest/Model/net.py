@@ -105,6 +105,7 @@ class C2f(nn.Module):
 
 
 class YOLOv8l(nn.Module):
+    numbers_class = 80
     def __init__(self):
         super(YOLOv8l, self).__init__()
         # backbone
@@ -134,6 +135,10 @@ class YOLOv8l(nn.Module):
         self.conv_19 = Conv(512, 512, 3, 2,
                             padding=auto_padding(3, None))
         self.c2f_21 = C2f(False, 3, 1024, 512)
+
+    def detector(self, feat, nc, ch):
+        Bbox = nn.ModuleList(
+            nn.Sequential(Conv(x, ), Conv(), nn.Conv2d()) for x in ch)
 
     def forward(self, x):
         # backbone
@@ -165,5 +170,5 @@ class YOLOv8l(nn.Module):
         return x15, x18, x21
 
 
-net = YOLOv8l()
+net = YOLOv8l(6)
 print(net)
