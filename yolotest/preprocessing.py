@@ -27,17 +27,46 @@ class HSTS6(Dataset):
         self.labels.sort()
 
     def build_transform(self):
-        """
-
+        """define your method of augment.
+        like:
+            if self.augment:
+                return trianing transform
+            else:
+                return val transform
         """
         if self.augment:
-            transforms.Compose([
+            return transforms.Compose([
             ])
         else:
-            transforms.Compose([
+            return transforms.Compose([
                 transforms.Resize((self.size, self.size)),
                 transforms.ToTensor()
             ])
+        # raise NotImplementedError
+
+    def image_files(self, img_path):
+        """Read image files
+
+        Two case:
+            1.Folder to save images
+            2.File with image path
+
+        """
+        try:
+            for p in img_path if isinstance(img_path, list) else list(img_path):
+                p = Path(p)
+                if p.is_dir():
+                    F = list(p.rglob("*.*"))
+                elif p.is_file():
+                    with open(p) as f:
+                        f = f.read().strip().splitlines()
+
+
+
+
+        except Exception as e:
+            # Define your exception
+            raise FileNotFoundError("custom") from e
 
     def __getitem__(self, item):
         image_item = self.images[item]
