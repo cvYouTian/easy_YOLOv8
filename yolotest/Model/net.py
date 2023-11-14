@@ -170,5 +170,5 @@ class YOLOv8l(nn.Module):
         return x15, x18, x21
 
 
-net = YOLOv8l(6)
+net = YOLOv8l()
 print(net)
