@@ -5,12 +5,13 @@ from typing import Union
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 
+
 class HSTS6(Dataset):
     def __init__(self,
                  size: int,
-                 root_dir:Union[Path, str] = "",
-                 image_dir:Union[Path, str] = "",
-                 label_dir:Union[Path, str] = "",
+                 root_dir: Union[Path, str] = "",
+                 image_dir: Union[Path, str] = "",
+                 label_dir: Union[Path, str] = "",
                  augment: bool = False):
         super(HSTS6, self).__init__()
         self.size = size
@@ -44,7 +45,7 @@ class HSTS6(Dataset):
             ])
         # raise NotImplementedError
 
-    def image_files(self, img_path):
+    def image_files(self, img_path: str):
         """Read image files
 
         Two case:
@@ -53,13 +54,23 @@ class HSTS6(Dataset):
 
         """
         try:
+            # 提前定义一个存储图片绝对路径的列表
+            l: list = list()
             for p in img_path if isinstance(img_path, list) else list(img_path):
                 p = Path(p)
                 if p.is_dir():
-                    F = list(p.rglob("*.*"))
+                    # 将rglob产生的迭代器转化成列表，内容时图片的路径
+                    l += list(p.rglob("*.*"))
                 elif p.is_file():
                     with open(p) as f:
                         f = f.read().strip().splitlines()
+                        # to transform a abs patn from reference path .
+                        l += list(p.parent / x.lstrip(os.sep) for x in f)
+                else:
+                    raise FileNotFoundError("%s does not exist！！" % img_path)
+
+
+
 
 
 
