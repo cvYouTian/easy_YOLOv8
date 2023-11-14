@@ -59,20 +59,4 @@ def find_nonprintable_chars(string):
 
 
 if __name__ == '__main__':
-
-    # ya = yaml_load(file="/home/youtian/Documents/pro/pyCode/easy_YOLOv8/ultralytics/cfg/models/v8/yolov8.yaml")
-    # s = "**##H\tello \n ####@ World!"
-    # print(find_nonprintable_chars(s))
-    # # print(s.isprintable())
-    # s = re.sub(r'[^\x09\x0A\x0D\x20-\x7E\x85\xA0-\uD7FF\uE000-\uFFFD\U00010000-\U0010ffff]+', '', s)
-    # print(ya.get("activation", 1))
-    # print(ya)
-    # a = [3, 4, 1, 9]
-    # print(type(*a[1:]))
-
-
-    # pattren = "s"
-    k = "s"
-    res = re.match(k, "sdfgas")
-    print(res)
-    print(res.group())
+    ...

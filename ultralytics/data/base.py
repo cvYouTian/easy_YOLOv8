@@ -103,14 +103,14 @@ class BaseDataset(Dataset):
             for p in img_path if isinstance(img_path, list) else [img_path]:
                 p = Path(p)  # os-agnostic
                 if p.is_dir():  # dir
-                    f += glob.glob(str(p / '**' / '*.*'), recursive=True)
-                    # F = list(p.rglob('*.*'))  # pathlib
+                    # f += glob.glob(str(p / '**' / '*.*'), recursive=True)
+                    F = list(p.rglob('*.*'))  # pathlib
                 elif p.is_file():  # file
                     with open(p) as t:
                         t = t.read().strip().splitlines()
                         parent = str(p.parent) + os.sep
-                        f += [x.replace('./', parent) if x.startswith('./') else x for x in t]  # local to global path
-                        # F += [p.parent / x.lstrip(os.sep) for x in t]  # local to global path (pathlib)
+                        # f += [x.replace('./', parent) if x.startswith('./') else x for x in t]  # local to global path
+                        F += [p.parent / x.lstrip(os.sep) for x in t]  # local to global path (pathlib)
                 else:
                     raise FileNotFoundError(f'{self.prefix}{p} does not exist')
             im_files = sorted(x.replace('/', os.sep) for x in f if x.split('.')[-1].lower() in IMG_FORMATS)
@@ -268,6 +268,11 @@ class BaseDataset(Dataset):
                 # Val transforms
                 return Compose([])
         """
+        '''
+        NotImplementedError可以用於任何Python程序中，但是最常見的用法是在抽象類中使用它。
+        抽象類是一種特殊的類，它只定義接口，而不實現任何功能。它的子類必須實現它的接口，
+        否則將拋出NotImplementedError。
+        '''
         raise NotImplementedError
 
     def get_labels(self):

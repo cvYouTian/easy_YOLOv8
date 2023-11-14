@@ -1,8 +1,6 @@
 # Ultralytics YOLO 🚀, AGPL-3.0 license
 from copy import copy
-
 import numpy as np
-
 from ultralytics.data import build_dataloader, build_yolo_dataset
 from ultralytics.engine.trainer import BaseTrainer
 from ultralytics.models import yolo

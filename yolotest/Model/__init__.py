@@ -1,4 +1,4 @@
 import net
-import DetectionModel, DetectionTrainer, DetectionValidator, DetectionPredictor
+from net import Conv, C2f, Bottleneck, SPPF
 
-__all__ = [DetectionModel, DetectionTrainer, DetectionValidator, DetectionPredictor]
+__all__ = (Conv, C2f, Bottleneck, SPPF)
