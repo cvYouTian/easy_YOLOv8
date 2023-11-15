@@ -69,6 +69,8 @@ class HSTS6(Dataset):
                 else:
                     raise FileNotFoundError("%s does not exist！！" % img_path)
 
+        except Exception as e:
+            raise 
 
 
 

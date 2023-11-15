@@ -2,15 +2,11 @@
 """
 Model head modules
 """
-
 import math
-
 import torch
 import torch.nn as nn
 from torch.nn.init import constant_, xavier_uniform_
-
 from ultralytics.utils.tal import dist2bbox, make_anchors
-
 from .block import DFL, Proto
 from .conv import Conv
 from .transformer import MLP, DeformableTransformerDecoder, DeformableTransformerDecoderLayer
@@ -36,6 +32,7 @@ class Detect(nn.Module):
         self.reg_max = 16  # DFL channels (ch[0] // 16 to scale4/8/12/16/20 for n/s/m/l/x)
         self.no = nc + self.reg_max * 4  # number of outputs per anchor
         self.stride = torch.zeros(self.nl)  # strides computed during build
+        # chanel[0]是细粒度最丰富的feat
         c2, c3 = max((16, ch[0] // 4, self.reg_max * 4)), max(ch[0], min(self.nc, 100))  # channels
         # cv2 is Bbox loss
         self.cv2 = nn.ModuleList(
@@ -52,11 +49,11 @@ class Detect(nn.Module):
         # achieve picture's shape
         shape = x[0].shape  # BCHW
         for i in range(self.nl):
+            # x is a list
             x[i] = torch.cat((self.cv2[i](x[i]), self.cv3[i](x[i])), 1)
-
             self.anchors, self.strides = (x.transpose(0, 1) for x in make_anchors(x, self.stride, 0.5))
             self.shape = shape
-
+        # [1, 80+reg*4, -1]
         x_cat = torch.cat([xi.view(shape[0], self.no, -1) for xi in x], 2)
         if self.export and self.format in ('saved_model', 'pb', 'tflite', 'edgetpu', 'tfjs'):  # avoid TF FlexSplitV ops
             box = x_cat[:, :self.reg_max * 4]

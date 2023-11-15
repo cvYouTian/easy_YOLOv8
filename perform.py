@@ -12,8 +12,8 @@ from ultralytics import YOLO
 
 def train():
     # Load a model
-    model = YOLO('yolov6m.yaml')
-    print(model)
+    model = YOLO('yolov8n.yaml')
+    # print(model)
     # model = YOLO('yolov8m.pt')
     
     # 做预训练
@@ -22,7 +22,7 @@ def train():
 
     # Train the model
     # model.train(data="HSTS6.yaml", epochs=150, imgsz=640)
-    # model.train(data="HSTS6.yaml", epochs=5, imgsz=640)
+    model.train(data="HSTS6.yaml", epochs=5, imgsz=640)
 
 
 def onnx(path: Union[str, Path], ):

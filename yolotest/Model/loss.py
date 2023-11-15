@@ -8,7 +8,7 @@ from matplotlib import pyplot as plt
 
 
 class Test(object):
-    def __init__(self, r , g, b):
+    def __init__(self, r, g, b):
         self.r = r
         self.b = b
         self.g = g

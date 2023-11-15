@@ -76,7 +76,11 @@ class Bottleneck(nn.Module):
 
 
 class C2f(nn.Module):
-    def __init__(self, shortcut: bool, block: int, in_channel, out_channel):
+    def __init__(self,
+                 shortcut: bool,
+                 block: int,
+                 in_channel,
+                 out_channel):
         super(C2f, self).__init__()
         self.conv1 = Conv(input_chanel=in_channel,
                           output_chanel=out_channel,
@@ -104,8 +108,8 @@ class C2f(nn.Module):
         #
 
 
+
 class YOLOv8l(nn.Module):
-    numbers_class = 80
     def __init__(self):
         super(YOLOv8l, self).__init__()
         # backbone
@@ -136,10 +140,12 @@ class YOLOv8l(nn.Module):
                             padding=auto_padding(3, None))
         self.c2f_21 = C2f(False, 3, 1024, 512)
 
-    def detector(self, feat, nc, ch):
+    @staticmethod
+    def detector(feat):
+        ch = feat[:]
         Bbox = nn.ModuleList(
-            nn.Sequential(Conv(x, ), Conv(), nn.Conv2d()) for x in ch)
-
+            nn.Sequential()
+        )
     def forward(self, x):
         # backbone
         p1 = self.conv_0(x)
