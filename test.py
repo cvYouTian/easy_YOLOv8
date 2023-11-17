@@ -48,8 +48,25 @@ class CNN(nn.Module):
 
 
 
+class FC(nn.Module):
+    def __init__(self, input_chanel):
+        super(FC, self).__init__()
+        self.fc = nn.Sequential(nn.Linear(in_features=input_chanel, out_features=1024),
+                                nn.ReLU(inplace=True),
+                                nn.Linear(in_features=1024, out_features=256),
+                                nn.ReLU(inplace=True),
+                                nn.Linear(in_features=256, out_features=6))
+    def forward(self, x):
+        logits = self.fc(x)
+        return logits
+
+
+
+
 if __name__ == '__main__':
-    ...
+    t = torch.randn([1, 256, 20, 20])
+    linear = FC(100)
+    print(linear(t))
     # net = Net()
     # print(net)
     #

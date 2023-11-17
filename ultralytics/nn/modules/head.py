@@ -8,7 +8,7 @@ import torch.nn as nn
 from torch.nn.init import constant_, xavier_uniform_
 from ultralytics.utils.tal import dist2bbox, make_anchors
 from .block import DFL, Proto
-from .conv import Conv
+from .conv import Conv, SRU, CRU, FC
 from .transformer import MLP, DeformableTransformerDecoder, DeformableTransformerDecoderLayer
 from .utils import bias_init_with_prob, linear_init_
 
@@ -35,13 +35,24 @@ class Detect(nn.Module):
         # chanel[0]是细粒度最丰富的feat
         c2, c3 = max((16, ch[0] // 4, self.reg_max * 4)), max(ch[0], min(self.nc, 100))  # channels
         # cv2 is Bbox loss
-        self.cv2 = nn.ModuleList(
-            nn.Sequential(Conv(x, c2, 3), Conv(c2, c2, 3), nn.Conv2d(c2, 4 * self.reg_max, 1))
-            for x in ch)
-        # cv3 is Cls loss
-        self.cv3 = nn.ModuleList(
-            nn.Sequential(Conv(x, c3, 3), Conv(c3, c3, 3), nn.Conv2d(c3, self.nc, 1))
-            for x in ch)
+        if nc == 6:
+            self.cv2 = nn.ModuleList(
+                nn.Sequential(CRU(c2), Conv(c2, c2, 3), nn.Conv2d(c2, 4 * self.reg_max, 1))
+                for _ in ch)
+            # cv3 is Cls loss
+            self.cv3 = nn.ModuleList(
+                nn.Sequential(SRU(c3), FC())
+                for _ in ch)
+        else:
+            self.cv2 = nn.ModuleList(
+                nn.Sequential(Conv(x, c2, 3), Conv(c2, c2, 3), nn.Conv2d(c2, 4 * self.reg_max, 1))
+                for x in ch)
+            # cv3 is Cls loss
+            self.cv3 = nn.ModuleList(
+                nn.Sequential(Conv(x, c3, 3), Conv(c3, c3, 3), nn.Conv2d(c3, self.nc, 1))
+                for x in ch)
+
+
         self.dfl = DFL(self.reg_max) if self.reg_max > 1 else nn.Identity()
 
     def forward(self, x):

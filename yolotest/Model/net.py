@@ -176,5 +176,7 @@ class YOLOv8l(nn.Module):
         return x15, x18, x21
 
 
-net = YOLOv8l()
-print(net)
+if __name__ == "__main__":
+
+    net = YOLOv8l()
+    print(net)

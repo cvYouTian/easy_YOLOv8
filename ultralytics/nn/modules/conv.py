@@ -4,10 +4,11 @@ Convolution modules
 import math
 import numpy as np
 import torch
+import torch.nn.functional as F
 import torch.nn as nn
 
 __all__ = ('Conv', 'LightConv', 'DWConv', 'DWConvTranspose2d', 'ConvTranspose', 'Focus', 'GhostConv',
-           'ChannelAttention', 'SpatialAttention', 'CBAM', 'Concat', 'RepConv', 'PConv', "SCConv", "SRU", "CRU")
+           'ChannelAttention', 'SpatialAttention', 'CBAM', 'Concat', 'RepConv', 'PConv', "SCConv", "SRU", "CRU", "FC")
 
 
 def autopad(k, p=None, d=1):  # kernel, padding, dilation
@@ -17,6 +18,19 @@ def autopad(k, p=None, d=1):  # kernel, padding, dilation
     if p is None:
         p = k // 2 if isinstance(k, int) else [x // 2 for x in k]  # auto-pad
     return p
+
+
+class FC(nn.Module):
+    def __init__(self, input_chanel):
+        super(FC, self).__init__()
+        self.fc = nn.Sequential(nn.Linear(in_features=input_chanel, out_features=1024),
+                                nn.ReLU(inplace=True),
+                                nn.Linear(in_features=1024, out_features=256),
+                                nn.ReLU(inplace=True),
+                                nn.Linear(in_features=256, out_features=6))
+    def forward(self, x):
+        logits = self.fc(x)
+        return logits
 
 
 class Conv(nn.Module):

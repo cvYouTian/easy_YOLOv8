@@ -5,7 +5,6 @@ from pathlib import Path, PurePath
 import os
 from Model import Conv, C2f, Bottleneck, SPPF
 
-
 class Detect(nn.Module):
     """YOLOv8 Detect head for detection models."""
     anchors: torch.Tensor = torch.empty(0)
@@ -18,7 +17,7 @@ class Detect(nn.Module):
         self.nc = nc
         self.nh = len(ch)
         self.cla_conv = nn.ModuleList(
-            nn.Sequential(Conv(x,), Conv(), nn.Conv2d()) for x in ch
+            nn.Sequential(Conv(x, ), Conv(), nn.Conv2d()) for x in ch
         )
 
 
@@ -29,3 +28,11 @@ class Fuse:
 
     def is_fused(self):
         ...
+
+
+
+if __name__ == "__main__":
+    t = torch.randn(64, 20*20, 100)
+    dst = t.view([64*20, -1]).permute(1, 0).contiguous()
+    dst1 = t.view([64*20, -1]).permute(1, 0).contiguous()
+    print(dst1, "\n", dst, dst.shape)
