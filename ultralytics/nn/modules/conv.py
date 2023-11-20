@@ -28,6 +28,7 @@ class FC(nn.Module):
                                 nn.Linear(in_features=1024, out_features=256),
                                 nn.ReLU(inplace=True),
                                 nn.Linear(in_features=256, out_features=6))
+
     def forward(self, x):
         logits = self.fc(x)
         return logits
