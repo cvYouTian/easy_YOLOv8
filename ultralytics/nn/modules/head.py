@@ -14,6 +14,23 @@ from .utils import bias_init_with_prob, linear_init_
 
 __all__ = 'Detect', 'Segment', 'Pose', 'Classify', 'RTDETRDecoder'
 
+"""sample"""
+# class DoubleHead(nn.Module):
+#
+#     def __init__(self, in_ch, out_ch):
+#         super().__init__()
+#         self.fc = nn.Sequential(nn.Linear(in_features=in_ch, out_features=1024),
+#                                 nn.ReLU(inplace=True),
+#                                 nn.Linear(in_features=1024, out_features=256),
+#                                 nn.ReLU(inplace=True),
+#                                 nn.Linear(in_features=256, out_features=6))
+#         self.conv = nn.Sequential()
+#     def forward(self, feat):
+#         classification_head = self.fc(feat)
+#         location_head = self.conv(feat)
+#         return classification_head, location_head
+#
+
 
 class Detect(nn.Module):
     """YOLOv8 Detect head for detection models."""
@@ -34,7 +51,7 @@ class Detect(nn.Module):
         self.stride = torch.zeros(self.nl)  # strides computed during build
         # chanel[0]是细粒度最丰富的feat
         c2, c3 = max((16, ch[0] // 4, self.reg_max * 4)), max(ch[0], min(self.nc, 100))  # channels
-        if nc == 6:
+        if nc != 6:
             # cv2 is Bbox head
             self.cv2 = nn.ModuleList(
                 nn.Sequential(Conv(x, c2, 3), Conv(c2, c2, 3), nn.Conv2d(c2, 4 * self.reg_max, 1))
@@ -68,6 +85,7 @@ class Detect(nn.Module):
         # 将两种不同的尺寸的featuremap的chanel打成相同的
         for i in range(self.nl):
             # x is a list
+            print(self.cv2[i](x[i]).shape, self.cv3[i](x[i]).shape)
             x[i] = torch.cat((self.cv2[i](x[i]), self.cv3[i](x[i])), 1)
             self.anchors, self.strides = (x.transpose(0, 1) for x in make_anchors(x, self.stride, 0.5))
             self.shape = shape
