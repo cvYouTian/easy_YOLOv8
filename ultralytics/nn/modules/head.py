@@ -51,7 +51,7 @@ class Detect(nn.Module):
         self.stride = torch.zeros(self.nl)  # strides computed during build
         # chanel[0]是细粒度最丰富的feat
         c2, c3 = max((16, ch[0] // 4, self.reg_max * 4)), max(ch[0], min(self.nc, 100))  # channels
-        if nc != 6:
+        if nc == 6:
             # cv2 is Bbox head
             self.cv2 = nn.ModuleList(
                 nn.Sequential(Conv(x, c2, 3), Conv(c2, c2, 3), nn.Conv2d(c2, 4 * self.reg_max, 1))
@@ -85,11 +85,14 @@ class Detect(nn.Module):
         # 将两种不同的尺寸的featuremap的chanel打成相同的
         for i in range(self.nl):
             # x is a list
-            print(self.cv2[i](x[i]).shape, self.cv3[i](x[i]).shape)
+            # print(self.cv2[i](x[i]).shape, self.cv3[i](x[i]).shape)
             x[i] = torch.cat((self.cv2[i](x[i]), self.cv3[i](x[i])), 1)
+            # print(x[i].shape)
+            # [2, 1280], [1, 1280]
             self.anchors, self.strides = (x.transpose(0, 1) for x in make_anchors(x, self.stride, 0.5))
             self.shape = shape
         # [1, 80+reg*4, -1]
+        # [1, 70, 1280] ——> yolov8n
         x_cat = torch.cat([xi.view(shape[0], self.no, -1) for xi in x], 2)
         if self.export and self.format in ('saved_model', 'pb', 'tflite', 'edgetpu', 'tfjs'):  # avoid TF FlexSplitV ops
             box = x_cat[:, :self.reg_max * 4]
@@ -106,7 +109,7 @@ class Detect(nn.Module):
             img_w = shape[3] * self.stride[0]
             img_size = torch.tensor([img_w, img_h, img_w, img_h], device=dbox.device).reshape(1, 4, 1)
             dbox /= img_size
-
+        # [1, 10, 1280]
         y = torch.cat((dbox, cls.sigmoid()), 1)
         return y if self.export else (y, x)
 
