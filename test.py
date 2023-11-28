@@ -7,5 +7,14 @@ import re
 import torch.nn.functional as F
 import torch
 import torch.nn as nn
+from yolotest.Model.net import YOLOv8l
+
+
+
+model = YOLOv8l()
+a = model.parameters()
+print(a)
+
+
 
 
