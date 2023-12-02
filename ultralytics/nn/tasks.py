@@ -81,7 +81,7 @@ class BaseModel(nn.Module):
                 x = y[m.f] if isinstance(m.f, int) else [x if j == -1 else y[j] for j in m.f]  # from earlier layers
             if profile:
                 self._profile_one_layer(m, x, dt)
-            x = m(x)  # run
+            x = m(x)   # run
             y.append(x if m.i in self.save else None)  # save output
             if visualize:
                 feature_visualization(x, m.type, m.i, save_dir=visualize)
@@ -754,7 +754,7 @@ def parse_model(d, ch, verbose=True):
         elif m is Concat:
             c2 = sum(ch[x] for x in f)
         elif m is ASFF:
-            c2 = (ch[x] for x in f)
+            c2 = 512 if 18 in f else 1024
         elif m in (Detect, Segment, Pose):
             args.append([ch[x] for x in f])
             if m is Segment:
