@@ -5,6 +5,7 @@ Model head modules
 import math
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.nn.init import constant_, xavier_uniform_
 from ultralytics.utils.tal import dist2bbox, make_anchors
 from .block import DFL, Proto
@@ -14,22 +15,6 @@ from .utils import bias_init_with_prob, linear_init_
 
 __all__ = 'Detect', 'Segment', 'Pose', 'Classify', 'RTDETRDecoder'
 
-"""sample"""
-# class DoubleHead(nn.Module):
-#
-#     def __init__(self, in_ch, out_ch):
-#         super().__init__()
-#         self.fc = nn.Sequential(nn.Linear(in_features=in_ch, out_features=1024),
-#                                 nn.ReLU(inplace=True),
-#                                 nn.Linear(in_features=1024, out_features=256),
-#                                 nn.ReLU(inplace=True),
-#                                 nn.Linear(in_features=256, out_features=6))
-#         self.conv = nn.Sequential()
-#     def forward(self, feat):
-#         classification_head = self.fc(feat)
-#         location_head = self.conv(feat)
-#         return classification_head, location_head
-#
 
 
 class Detect(nn.Module):
@@ -114,7 +99,7 @@ class Detect(nn.Module):
         return y if self.export else (y, x)
 
     def bias_init(self):
-        """Initialize Detect() biases, WARNING: requires stride availability."""
+        """Initialize Detect() biases, WARNING: requires   availability."""
         m = self  # self.model[-1]  # Detect() module
         # cf = torch.bincount(torch.tensor(np.concatenate(dataset.labels, 0)[:, 0]).long(), minlength=nc) + 1
         # ncf = math.log(0.6 / (m.nc - 0.999999)) if cf is None else torch.log(cf / cf.sum())  # nominal class frequency

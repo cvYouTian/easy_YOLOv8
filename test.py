@@ -8,13 +8,12 @@ import torch.nn.functional as F
 import torch
 import torch.nn as nn
 from yolotest.Model.net import YOLOv8l
+n = 100
+l = [2, 3, 4, 5, 6]
 
+l.insert(2, n)
 
-
-model = YOLOv8l()
-a = model.parameters()
-print(a)
-
+print(l)
 
 
 

@@ -8,7 +8,7 @@ from ultralytics.nn.modules import (AIFI, C1, C2, C3, C3TR, SPP, SPPF, Bottlenec
                                     Focus, GhostBottleneck, GhostConv, HGBlock, HGStem, Pose, RepC3, RepConv,
                                     RTDETRDecoder, Segment, PConv, FasterC2f_N, FasterC2f, PconvBottleneck,
                                     PconvBottleneck_n, SCConv, SCConvBottleneck, SCC2f, SC_PW_Bottleneck, SC_PW_C2f,
-                                    SC_Conv3_Bottleneck, SC_Conv3_C2f, Conv3_SC_C2f, Conv3_SC_Bottleneck)
+                                    SC_Conv3_Bottleneck, SC_Conv3_C2f, Conv3_SC_C2f, Conv3_SC_Bottleneck, ASFF)
 
 from ultralytics.utils import DEFAULT_CFG_DICT, DEFAULT_CFG_KEYS, LOGGER, colorstr, emojis, yaml_load
 from ultralytics.utils.checks import check_requirements, check_suffix, check_yaml
@@ -659,7 +659,8 @@ def attempt_load_one_weight(weight, device=None, inplace=True, fuse=False):
 
 
 # 将model文件的字典信息转化为pytorch的模型结构
-def parse_model(d, ch, verbose=True):  # {'nc': 6, 'scales': [1.0, 1.0, 512], 'backbone':[], "head":[],
+def parse_model(d, ch, verbose=True):
+    # {'nc': 6, 'scales': [1.0, 1.0, 512], 'backbone':[], "head":[],
     # "yaml_file": "./././", "ch": 3} ch= 3, True
     """Parse a YOLO model.yaml dictionary into a PyTorch model."""
     import ast
@@ -670,13 +671,16 @@ def parse_model(d, ch, verbose=True):  # {'nc': 6, 'scales': [1.0, 1.0, 512], 'b
     # 使用.get的方法拿到字典的值, 如果key不存在, 则不会报错,会用NONE来填充Value
     nc, act, scales = (d.get(x) for x in ('nc', 'activation', 'scales'))
     # 添加depth, width, kpt_shape为1.0
+
     depth, width, kpt_shape = (d.get(x, 1.0) for x in ('depth_multiple', 'width_multiple', 'kpt_shape'))
     # 根据n、l、m、s等选参数
     if scales:
         scale = d.get('scale')
         if not scale:
+            #
             scale = tuple(scales.keys())[0]
             LOGGER.warning(f"WARNING ⚠️ no model scale passed. Assuming scale='{scale}'.")
+        # 给scale赋值
         depth, width, max_channels = scales[scale]
 
     if act:
@@ -688,9 +692,13 @@ def parse_model(d, ch, verbose=True):  # {'nc': 6, 'scales': [1.0, 1.0, 512], 'b
     if verbose:
         #                    from  n    params  module                                       arguments 打印表头
         LOGGER.info(f"\n{'':>3}{'from':>20}{'n':>3}{'params':>10}  {'module':<45}{'arguments':<30}")
+
     # [3, ]
     ch = [ch]
-    layers, save, c2 = [], [], ch[-1]  # layers, savelist, ch out
+
+    # layers, savelist, ch out
+    layers, save, c2 = [], [], ch[-1]
+
     # from, number, module, args
     for i, (f, n, m, args) in enumerate(d['backbone'] + d['head']):
         # 这里使用getattr函数获得某一类的方法， 使用globals的内置函数返回全部全局变量
@@ -703,12 +711,26 @@ def parse_model(d, ch, verbose=True):  # {'nc': 6, 'scales': [1.0, 1.0, 512], 'b
         n = n_ = max(round(n * depth), 1) if n > 1 else n  # depth gain
         # add FasterC2f and PconvBottleneck and PConv
         # 使用元组作循环更高效
+        """
+              # [from, repeats, module, args]
+              - [-1, 1, Conv, [64, 3, 2]]  # 0-P1/2
+              - [-1, 1, Conv, [128, 3, 2]]  # 1-P2/4
+              - [-1, 3, FasterC2f_N, [128, True]]
+              - [-1, 1, Conv, [256, 3, 2]]  # 3-P3/8
+              - [-1, 6, FasterC2f_N, [256, True]]
+              - [-1, 1, Conv, [512, 3, 2]]  # 5-P4/16
+              - [-1, 6, FasterC2f_N, [512, True]]
+              - [-1, 1, Conv, [1024, 3, 2]]  # 7-P5/32
+              - [-1, 3, FasterC2f_N, [1024, True]]
+              - [-1, 1, SPPF, [1024, 5]]  # 9
+        """
         if m in (Classify, Conv, ConvTranspose, GhostConv, Bottleneck, GhostBottleneck, SPP, SPPF, DWConv, Focus,
                  BottleneckCSP, C1, C2, C2f, C3, C3TR, C3Ghost, nn.ConvTranspose2d, DWConvTranspose2d, C3x, RepC3,
                  FasterC2f_N, FasterC2f, PconvBottleneck, PconvBottleneck_n, PConv, SCConv, SCConvBottleneck, SCC2f,
                  SC_PW_Bottleneck, SC_PW_C2f, SC_Conv3_Bottleneck, SC_Conv3_C2f, Conv3_SC_C2f, Conv3_SC_Bottleneck):
-            # 把上一层的信息和输出的通道数拿到
+            # 输入的chanel和输出的chanel
             c1, c2 = ch[f], args[0]
+
             if c2 != nc:  # if c2 not equal to number of classes (i.e. for Classify() output)
                 c2 = make_divisible(min(c2, max_channels) * width, 8)
             # 使用*表达式将内部的args列表解开
@@ -731,6 +753,8 @@ def parse_model(d, ch, verbose=True):  # {'nc': 6, 'scales': [1.0, 1.0, 512], 'b
             args = [ch[f]]
         elif m is Concat:
             c2 = sum(ch[x] for x in f)
+        elif m is ASFF:
+            c2 = (ch[x] for x in f)
         elif m in (Detect, Segment, Pose):
             args.append([ch[x] for x in f])
             if m is Segment:
