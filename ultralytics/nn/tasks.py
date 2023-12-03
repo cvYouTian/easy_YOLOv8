@@ -228,7 +228,6 @@ class DetectionModel(BaseModel):
         super().__init__()
         # 如果传进来的是一个字典，则直接使用，如果是别的在加载成字典
         self.yaml = cfg if isinstance(cfg, dict) else yaml_model_load(cfg)  # cfg dict
-        # Define model
         # 添加模型的输入通道
         # {'nc': 6, 'scales': [1.0, 1.0, 512], 'backbone':[], "head":[], "yaml_file": "./././", "ch": 3}
         # ch = 3

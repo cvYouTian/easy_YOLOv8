@@ -52,15 +52,13 @@ class ASFF(nn.Module):
     def __init__(self, level, rfb=False, vis=False):
         super(ASFF, self).__init__()
         self.level = level
-        self.dim = [512//4, 256//4]
+        self.dim = [512, 256]
         self.inter_dim = self.dim[self.level]
         if level == 0:
-            # self.stride_level_1 = add_conv(256, self.inter_dim, 3, 2)
-            self.stride_level_1 = add_conv(64, self.inter_dim, 3, 2)
+            self.stride_level_1 = add_conv(256, self.inter_dim, 3, 2)
             self.expand = add_conv(self.inter_dim, 1024, 3, 1)
         elif level == 1:
-            # self.compress_level_0 = add_conv(512, self.inter_dim, 1, 1)
-            self.compress_level_0 = add_conv(128, self.inter_dim, 1, 1)
+            self.compress_level_0 = add_conv(512, self.inter_dim, 1, 1)
             self.expand = add_conv(self.inter_dim, 512, 3, 1)
 
         compress_c = 8 if rfb else 16  # when adding rfb, we use half number of channels to save memory
@@ -97,6 +95,7 @@ class ASFF(nn.Module):
             return out, levels_weight, fused_out_reduced.sum(dim=1)
         else:
             return out
+
 
 class DFL(nn.Module):
     """

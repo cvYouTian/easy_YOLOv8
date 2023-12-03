@@ -12,7 +12,7 @@ from ultralytics import YOLO
 
 def train():
     # Load a model
-    model = YOLO('yolov8n.yaml')
+    model = YOLO('yolov8l.yaml')
     # print(model)
     # model = YOLO('yolov8m.pt')
     
