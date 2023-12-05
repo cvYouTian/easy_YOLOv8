@@ -340,6 +340,7 @@ class GroupBatchnorm2d(nn.Module):
         super(GroupBatchnorm2d, self).__init__()
         assert c_num >= group_num
         self.group_num = group_num
+        # define adaptive parameter
         self.weight = nn.Parameter(torch.randn(c_num, 1, 1))
         self.bias = nn.Parameter(torch.zeros(c_num, 1, 1))
         self.eps = eps

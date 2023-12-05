@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.init import constant_, xavier_uniform_
 from ultralytics.utils.tal import dist2bbox, make_anchors
-from .block import DFL, Proto
+from .block import DFL, Proto, SCConv
 from .conv import Conv, SRU, CRU, FC
 from .transformer import MLP, DeformableTransformerDecoder, DeformableTransformerDecoderLayer
 from .utils import bias_init_with_prob, linear_init_
@@ -37,6 +37,11 @@ class Detect(nn.Module):
         # chanel[0]是细粒度最丰富的feat
         c2, c3 = max((16, ch[0] // 4, self.reg_max * 4)), max(ch[0], min(self.nc, 100))  # channels
         if nc == 6:
+            self.cv2 = nn.ModuleList(
+                nn.Sequential(SRU(x), nn.Conv2d(x, 4*self.reg_max, 1)) for x in ch)
+            self.cv3 = nn.ModuleList(
+                nn.Sequential(SCConv(x), nn.Conv2d(x, self.nc, 1)) for x in ch)
+        else:
             # cv2 is Bbox head
             self.cv2 = nn.ModuleList(
                 nn.Sequential(Conv(x, c2, 3), Conv(c2, c2, 3), nn.Conv2d(c2, 4 * self.reg_max, 1))
@@ -46,15 +51,15 @@ class Detect(nn.Module):
                 nn.Sequential(Conv(x, c3, 3), Conv(c3, c3, 3), nn.Conv2d(c3, self.nc, 1))
                 for x in ch)
 
-        else:
-            # cv2 is Bbox head
-            self.cv2 = nn.ModuleList(
-                nn.Sequential(Conv(x, c2), Conv(c2, c2, 3), nn.Conv2d(c2, 4 * self.reg_max, 1))
-                for x in ch)
-            # cv3 is Cls head
-            self.cv3 = nn.ModuleList(
-                [nn.Sequential(SRU(c3), nn.Flatten(), FC(64*32*32)),
-                 nn.Sequential(SRU(c3), nn.Flatten(), FC(128*16*16))])
+        # else:
+        #     # cv2 is Bbox head
+        #     self.cv2 = nn.ModuleList(
+        #         nn.Sequential(Conv(x, c2), Conv(c2, c2, 3), nn.Conv2d(c2, 4 * self.reg_max, 1))
+        #         for x in ch)
+        #     # cv3 is Cls head
+        #     self.cv3 = nn.ModuleList(
+        #         [nn.Sequential(SRU(c3), nn.Flatten(), FC(64*32*32)),
+        #          nn.Sequential(SRU(c3), nn.Flatten(), FC(128*16*16))])
 
         self.dfl = DFL(self.reg_max) if self.reg_max > 1 else nn.Identity()
 
@@ -70,8 +75,10 @@ class Detect(nn.Module):
         # 将两种不同的尺寸的featuremap的chanel打成相同的
         for i in range(self.nl):
             # x is a list
-            # print(self.cv2[i](x[i]).shape, self.cv3[i](x[i]).shape)
             x[i] = torch.cat((self.cv2[i](x[i]), self.cv3[i](x[i])), 1)
+        if self.training:
+            return x
+        elif self.dynamic or self.shape != shape:
             # print(x[i].shape)
             # [2, 1280], [1, 1280]
             self.anchors, self.strides = (x.transpose(0, 1) for x in make_anchors(x, self.stride, 0.5))

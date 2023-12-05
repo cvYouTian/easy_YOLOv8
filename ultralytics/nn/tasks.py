@@ -251,6 +251,7 @@ class DetectionModel(BaseModel):
             m.inplace = self.inplace
             # 这里根据m的类型调用父类的forward(x)
             forward = lambda x: self.forward(x)[0] if isinstance(m, (Segment, Pose)) else self.forward(x)
+            tes = forward(torch.zeros(1, ch, s, s))
             m.stride = torch.tensor([s / x.shape[-2] for x in forward(torch.zeros(1, ch, s, s))])  # forward
             self.stride = m.stride
             m.bias_init()  # only run once
