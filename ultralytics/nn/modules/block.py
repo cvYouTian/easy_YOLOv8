@@ -49,9 +49,10 @@ def add_conv(in_ch, out_ch, ksize, stride, leaky=True):
 
 
 class ASFF(nn.Module):
-    def __init__(self, level, rfb=False, vis=False):
+    def __init__(self, level):
         super(ASFF, self).__init__()
         self.level = level
+        # self.width_coefficient = width_coefficient
         self.dim = [512, 256]
         self.inter_dim = self.dim[self.level]
         if level == 0:
@@ -61,14 +62,12 @@ class ASFF(nn.Module):
             self.compress_level_0 = add_conv(512, self.inter_dim, 1, 1)
             self.expand = add_conv(self.inter_dim, 512, 3, 1)
 
-        compress_c = 8 if rfb else 16  # when adding rfb, we use half number of channels to save memory
+        compress_c = 16  # when adding rfb, we use half number of channels to save memory
 
         self.weight_level_0 = add_conv(self.inter_dim, compress_c, 1, 1)
         self.weight_level_1 = add_conv(self.inter_dim, compress_c, 1, 1)
 
-        self.weight_levels = nn.Conv2d(compress_c * 2, 3, kernel_size=1, stride=1, padding=0)
-
-        self.vis = vis
+        self.weight_levels = nn.Conv2d(compress_c * 2, 2, kernel_size=1, stride=1, padding=0)
 
     def forward(self, x):
         if self.level == 0:
@@ -91,10 +90,7 @@ class ASFF(nn.Module):
 
         out = self.expand(fused_out_reduced)
 
-        if self.vis:
-            return out, levels_weight, fused_out_reduced.sum(dim=1)
-        else:
-            return out
+        return out
 
 
 class DFL(nn.Module):

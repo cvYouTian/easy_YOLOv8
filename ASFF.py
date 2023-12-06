@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
-# from utils.DCN.modules.deform_conv2d import DeformConv2d
+from utils.DCN.modules.deform_conv2d import DeformConv2d
 
 
 def add_conv(in_ch, out_ch, ksize, stride, leaky=True):
@@ -174,33 +174,33 @@ class RFBblock(nn.Module):
         return out
 
 
-# class FeatureAdaption(nn.Module):
-#     def __init__(self, in_ch, out_ch, n_anchors, rfb=False, sep=False):
-#         super(FeatureAdaption, self).__init__()
-#         if sep:
-#             self.sep = True
-#         else:
-#             self.sep = False
-#             self.conv_offset = nn.Conv2d(in_channels=2 * n_anchors,
-#                                          out_channels=2 * 9 * n_anchors, groups=n_anchors, kernel_size=1, stride=1,
-#                                          padding=0)
-#             self.dconv = DeformConv2d(in_channels=in_ch, out_channels=out_ch, kernel_size=3, stride=1,
-#                                       padding=1, deformable_groups=n_anchors)
-#             self.rfb = None
-#             if rfb:
-#                 self.rfb = RFBblock(out_ch)
-#
-#     def forward(self, input, wh_pred):
-#         # The RFB block is added behind FeatureAdaption
-#         # For mobilenet, we currently don't support rfb and FeatureAdaption
-#         if self.sep:
-#             return input
-#         if self.rfb is not None:
-#             input = self.rfb(input)
-#         wh_pred_new = wh_pred.detach()
-#         offset = self.conv_offset(wh_pred_new)
-#         out = self.dconv(input, offset)
-#         return out
+class FeatureAdaption(nn.Module):
+    def __init__(self, in_ch, out_ch, n_anchors, rfb=False, sep=False):
+        super(FeatureAdaption, self).__init__()
+        if sep:
+            self.sep = True
+        else:
+            self.sep = False
+            self.conv_offset = nn.Conv2d(in_channels=2 * n_anchors,
+                                         out_channels=2 * 9 * n_anchors, groups=n_anchors, kernel_size=1, stride=1,
+                                         padding=0)
+            self.dconv = DeformConv2d(in_channels=in_ch, out_channels=out_ch, kernel_size=3, stride=1,
+                                      padding=1, deformable_groups=n_anchors)
+            self.rfb = None
+            if rfb:
+                self.rfb = RFBblock(out_ch)
+
+    def forward(self, input, wh_pred):
+        # The RFB block is added behind FeatureAdaption
+        # For mobilenet, we currently don't support rfb and FeatureAdaption
+        if self.sep:
+            return input
+        if self.rfb is not None:
+            input = self.rfb(input)
+        wh_pred_new = wh_pred.detach()
+        offset = self.conv_offset(wh_pred_new)
+        out = self.dconv(input, offset)
+        return out
 
 
 class ASFFmobile(nn.Module):
@@ -274,59 +274,58 @@ class ASFF(nn.Module):
     def __init__(self, level, rfb=False, vis=False):
         super(ASFF, self).__init__()
         self.level = level
-        # self.dim = [512, 256, 256]
         self.dim = [512, 256, 256]
         self.inter_dim = self.dim[self.level]
         if level == 0:
             self.stride_level_1 = add_conv(256, self.inter_dim, 3, 2)
-            # self.stride_level_2 = add_conv(256, self.inter_dim, 3, 2)
+            self.stride_level_2 = add_conv(256, self.inter_dim, 3, 2)
             self.expand = add_conv(self.inter_dim, 1024, 3, 1)
         elif level == 1:
             self.compress_level_0 = add_conv(512, self.inter_dim, 1, 1)
-            # self.stride_level_2 = add_conv(256, self.inter_dim, 3, 2)
+            self.stride_level_2 = add_conv(256, self.inter_dim, 3, 2)
             self.expand = add_conv(self.inter_dim, 512, 3, 1)
-        # elif level == 2:
-        #     self.compress_level_0 = add_conv(512, self.inter_dim, 1, 1)
-        #     self.expand = add_conv(self.inter_dim, 256, 3, 1)
+        elif level == 2:
+            self.compress_level_0 = add_conv(512, self.inter_dim, 1, 1)
+            self.expand = add_conv(self.inter_dim, 256, 3, 1)
 
         compress_c = 8 if rfb else 16  # when adding rfb, we use half number of channels to save memory
 
         self.weight_level_0 = add_conv(self.inter_dim, compress_c, 1, 1)
         self.weight_level_1 = add_conv(self.inter_dim, compress_c, 1, 1)
-        # self.weight_level_2 = add_conv(self.inter_dim, compress_c, 1, 1)
+        self.weight_level_2 = add_conv(self.inter_dim, compress_c, 1, 1)
 
-        # self.weight_levels = nn.Conv2d(compress_c * 3, 3, kernel_size=1, stride=1, padding=0)
-        self.weight_levels = nn.Conv2d(compress_c * 2, 3, kernel_size=1, stride=1, padding=0)
+        self.weight_levels = nn.Conv2d(compress_c * 3, 3, kernel_size=1, stride=1, padding=0)
         self.vis = vis
 
-    def forward(self, x_level_0, x_level_1):
+    def forward(self, x_level_0, x_level_1, x_level_2):
         if self.level == 0:
             level_0_resized = x_level_0
             level_1_resized = self.stride_level_1(x_level_1)
 
-            # level_2_downsampled_inter = F.max_pool2d(x_level_2, 3, stride=2, padding=1)
-            # level_2_resized = self.stride_level_2(level_2_downsampled_inter)
+            level_2_downsampled_inter = F.max_pool2d(x_level_2, 3, stride=2, padding=1)
+            level_2_resized = self.stride_level_2(level_2_downsampled_inter)
 
         elif self.level == 1:
             level_0_compressed = self.compress_level_0(x_level_0)
             level_0_resized = F.interpolate(level_0_compressed, scale_factor=2, mode='nearest')
             level_1_resized = x_level_1
-            # level_2_resized = self.stride_level_2(x_level_2)
-        # elif self.level == 2:
-        #     level_0_compressed = self.compress_level_0(x_level_0)
-        #     level_0_resized = F.interpolate(level_0_compressed, scale_factor=4, mode='nearest')
-        #     level_1_resized = F.interpolate(x_level_1, scale_factor=2, mode='nearest')
-        #     level_2_resized = x_level_2
+            level_2_resized = self.stride_level_2(x_level_2)
+        elif self.level == 2:
+            level_0_compressed = self.compress_level_0(x_level_0)
+            level_0_resized = F.interpolate(level_0_compressed, scale_factor=4, mode='nearest')
+            level_1_resized = F.interpolate(x_level_1, scale_factor=2, mode='nearest')
+            level_2_resized = x_level_2
 
         level_0_weight_v = self.weight_level_0(level_0_resized)
         level_1_weight_v = self.weight_level_1(level_1_resized)
-        # level_2_weight_v = self.weight_level_2(level_2_resized)
-        levels_weight_v = torch.cat((level_0_weight_v, level_1_weight_v), 1)
+        level_2_weight_v = self.weight_level_2(level_2_resized)
+        levels_weight_v = torch.cat((level_0_weight_v, level_1_weight_v, level_2_weight_v), 1)
         levels_weight = self.weight_levels(levels_weight_v)
         levels_weight = F.softmax(levels_weight, dim=1)
 
         fused_out_reduced = level_0_resized * levels_weight[:, 0:1, :, :] + \
-                            level_1_resized * levels_weight[:, 1:2, :, :]
+                            level_1_resized * levels_weight[:, 1:2, :, :] + \
+                            level_2_resized * levels_weight[:, 2:, :, :]
 
         out = self.expand(fused_out_reduced)
 
@@ -428,13 +427,3 @@ class ressepblock(nn.Module):
                 h = res(h)
             x = x + h if self.shortcut else h
         return x
-
-
-
-if __name__ == '__main__':
-
-    level1 = torch.randn([1, 256, 80, 80])
-    level0 = torch.randn([1, 512, 40, 40])
-    m = ASFF(0)
-    res = m(level0, level1)
-    print(res.shape)

@@ -16,7 +16,6 @@ from .utils import bias_init_with_prob, linear_init_
 __all__ = 'Detect', 'Segment', 'Pose', 'Classify', 'RTDETRDecoder'
 
 
-
 class Detect(nn.Module):
     """YOLOv8 Detect head for detection models."""
     dynamic = False  # force grid reconstruction
@@ -38,9 +37,9 @@ class Detect(nn.Module):
         c2, c3 = max((16, ch[0] // 4, self.reg_max * 4)), max(ch[0], min(self.nc, 100))  # channels
         if nc == 6:
             self.cv2 = nn.ModuleList(
-                nn.Sequential(SRU(x), nn.Conv2d(x, 4*self.reg_max, 1)) for x in ch)
+                nn.Sequential(nn.Conv2d(x, 4*self.reg_max, 1)) for x in ch)
             self.cv3 = nn.ModuleList(
-                nn.Sequential(SCConv(x), nn.Conv2d(x, self.nc, 1)) for x in ch)
+                nn.Sequential(nn.Conv2d(x, self.nc, 1)) for x in ch)
         else:
             # cv2 is Bbox head
             self.cv2 = nn.ModuleList(
