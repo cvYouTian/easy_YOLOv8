@@ -1,30 +1,23 @@
-import torch
-import torch.nn as nn
-from torch import optim
+from pathlib import Path
+from tqdm import tqdm
 
 
-class MyModule(nn.Module):
-    def __init__(self, num):
-        super(MyModule, self).__init__()
-        params = torch.ones(num, requires_grad=True)
-        # self.conv = nn.Conv2d(3, 64, 3, 1, 1)
-        self.params = nn.Parameter(params)
+path = Path("/home/youtian/Documents/pro/pyCode/datasets/TESTASFF/images/temp")
+path2 = Path("/home/youtian/Documents/pro/pyCode/datasets/TESTASFF/labels/val")
+li = list()
+if path.is_dir():
+    li = path.rglob("*.jpg")
+dst_list = [path2 / i.with_suffix(".txt").name for i in li]
+dst_path = Path.cwd() / "test"
 
-    def forward(self, x):
-        y = self.params * x
-        return y
+if not dst_path.exists():
+    Path.mkdir(dst_path)
 
+for i in tqdm(dst_list):
+    path3 = dst_path / Path(i.name)
+    if not path3.exists():
+        path3.touch()
+    else:
+        raise FileExistsError
+    path3.write_text(i.read_text())
 
-if __name__ == '__main__':
-    net = MyModule(10)
-    # my_module = MyModule(10)
-    # inputs = torch.ones(10)
-    # outputs = my_module(inputs)
-    # optimizer = optim.SGD([{"params": net.parameters()},
-    #                        {"params": my_module.parameters()}], lr=0.01)
-    #
-    # tensor = torch.randn([2, 10, 30])
-    # # print(tensor[:, 1, :].shape)
-    #
-    # a = lambda x : print(x)
-    # a(4)
