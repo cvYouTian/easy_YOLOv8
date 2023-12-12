@@ -70,21 +70,14 @@ class HSTS6(Dataset):
                     raise FileNotFoundError("%s does not exist！！" % img_path)
 
         except Exception as e:
-            raise 
-
-
-
-
-
-
-        except Exception as e:
-            # Define your exception
-            raise FileNotFoundError("custom") from e
+            raise e
 
     def __getitem__(self, item):
         image_item = self.images[item]
+        print(image_item)
         label_item = self.labels[item]
         image_name_path = os.path.join(self.root_dir, self.image_path, image_item)
+        print(image_name_path)
         label_name_path = os.path.join(self.root_dir, self.label_path, label_item)
         img = Image.open(image_name_path)
 
@@ -107,4 +100,7 @@ if __name__ == '__main__':
     image_dir = Path("images")
     label_dir = Path("labels")
     hsts = HSTS6(input_size, root_dir, image_dir, label_dir)
-    test_set = DataLoader(dataset=hsts, batch_size=4, shuffle=True, num_workers=4, drop_last=False)
+    a = hsts[1]
+    print(a)
+
+    # test_set = DataLoader(dataset=hsts, batch_size=4, shuffle=True, num_workers=4, drop_last=False)
