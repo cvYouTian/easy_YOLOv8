@@ -1,7 +1,7 @@
 # Ultralytics YOLO 🚀, AGPL-3.0 licensefrom itertools import repeat
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
-
+from itertools import repeat
 import cv2
 import numpy as np
 import torch

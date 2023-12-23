@@ -22,6 +22,7 @@ import yaml
 
 from ultralytics import __version__
 
+
 # PyTorch Multi-GPU DDP Constants
 # 调取RANK的值，如果不存在则设置为-1=
 RANK = int(os.getenv('RANK', -1))
