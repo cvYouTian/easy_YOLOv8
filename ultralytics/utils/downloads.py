@@ -259,7 +259,11 @@ def attempt_download_asset(file, repo='ultralytics/assets', release='v0.0.0'):
 
 
 def download(url, dir=Path.cwd(), unzip=True, delete=False, curl=False, threads=1, retry=3):
-    """Downloads and unzips files concurrently if threads > 1, else sequentially."""
+
+    """Downloads and unzips files concurrently if threads > 1, else sequentially.
+        Args:
+            retry: 默认为尝试重下载3次，这个参数可以改
+    """
     dir = Path(dir)
     dir.mkdir(parents=True, exist_ok=True)  # make directory
     if threads > 1:

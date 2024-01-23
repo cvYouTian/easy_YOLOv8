@@ -35,7 +35,7 @@ class Detect(nn.Module):
         self.stride = torch.zeros(self.nl)  # strides computed during build
         # chanel[0]是细粒度最丰富的feat
         c2, c3 = max((16, ch[0] // 4, self.reg_max * 4)), max(ch[0], min(self.nc, 100))  # channels
-        if nc == 6:
+        if nc != 6:
             self.cv2 = nn.ModuleList(
                 nn.Sequential(nn.Conv2d(x, 4*self.reg_max, 1)) for x in ch)
             self.cv3 = nn.ModuleList(
@@ -56,9 +56,8 @@ class Detect(nn.Module):
         #         nn.Sequential(Conv(x, c2), Conv(c2, c2, 3), nn.Conv2d(c2, 4 * self.reg_max, 1))
         #         for x in ch)
         #     # cv3 is Cls head
-        #     self.cv3 = nn.ModuleList(
-        #         [nn.Sequential(SRU(c3), nn.Flatten(), FC(64*32*32)),
-        #          nn.Sequential(SRU(c3), nn.Flatten(), FC(128*16*16))])
+        #     self.cv3 = nn.ModuleList([nn.Sequential(SRU(c3), nn.Flatten(), FC(64*32*32)),
+        #                               nn.Sequential(SRU(c3), nn.Flatten(), FC(128*16*16))])
 
         self.dfl = DFL(self.reg_max) if self.reg_max > 1 else nn.Identity()
 

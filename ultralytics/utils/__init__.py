@@ -565,6 +565,7 @@ def get_user_config_dir(sub_dir='Ultralytics'):
     elif MACOS:  # macOS
         path = Path.home() / 'Library' / 'Application Support' / sub_dir
     elif LINUX:
+        # path = Path("/media/ncst/D668B19E68B17E35/") / ".config" / sub_dir
         path = Path.home() / '.config' / sub_dir
     else:
         raise ValueError(f'Unsupported operating system: {platform.system()}')

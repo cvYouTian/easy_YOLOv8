@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
-from utils.DCN.modules.deform_conv2d import DeformConv2d
+# from utils.DCN.modules.deform_conv2d import DeformConv2d
 
 
 def add_conv(in_ch, out_ch, ksize, stride, leaky=True):

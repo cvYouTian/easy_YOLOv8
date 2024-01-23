@@ -1,6 +1,7 @@
 """
 Block modules
 """
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -70,6 +71,7 @@ class ASFF(nn.Module):
         self.weight_levels = nn.Conv2d(compress_c * 2, 2, kernel_size=1, stride=1, padding=0)
 
     def forward(self, x):
+        print(x[1].shape)
         if self.level == 0:
             level_0_resized = x[0]
             level_1_resized = self.stride_level_1(x[1])

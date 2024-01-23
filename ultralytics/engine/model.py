@@ -1,5 +1,4 @@
 # Ultralytics YOLO 🚀, AGPL-3.0 license
-
 import sys
 from pathlib import Path
 from typing import Union
@@ -14,6 +13,7 @@ from ultralytics.utils import (DEFAULT_CFG, DEFAULT_CFG_DICT, DEFAULT_CFG_KEYS, 
 from ultralytics.utils.checks import check_file, check_imgsz, check_pip_update_available, check_yaml
 from ultralytics.utils.downloads import GITHUB_ASSET_STEMS
 from ultralytics.utils.torch_utils import smart_inference_mode
+
 
 # Map head to model, trainer, validator, and predictor classes
 TASK_MAP = {
