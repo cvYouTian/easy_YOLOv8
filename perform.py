@@ -149,6 +149,35 @@ def tracker():
     #         result.boxes.id.cpu().numpy().astype(int)
     #     )
 
+    def convert_label(path, lb_path, year, image_id):
+        """
+        convert VOCdataset into the dataset of the yolov8
+        """
+        def convert_box(size, box):
+            dw, dh = 1. / size[0], 1. / size[1]
+            x, y, w, h = (box[0] + box[1]) / 2.0 - 1, (box[2] + box[3]) / 2.0 - 1, box[1] - box[0], box[3] - box[2]
+            return x * dw, y * dh, w * dw, h * dh
+
+        in_file = open(path / f'VOC{year}/Annotations/{image_id}.xml')
+        out_file = open(lb_path, 'w')
+        tree = ET.parse(in_file)
+        root = tree.getroot()
+        size = root.find('size')
+        w = int(size.find('width').text)
+        h = int(size.find('height').text)
+
+        names = ["aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable",
+                 "dog", "horse", "motorbike", "person",
+                 "pottedplant", "sheep", "sofa", "train", "tvmonitor"]  # names list
+
+        for obj in root.iter('object'):
+            cls = obj.find('name').text
+            if cls in names and int(obj.find('difficult').text) != 1:
+                xmlbox = obj.find('bndbox')
+                bb = convert_box((w, h), [float(xmlbox.find(x).text) for x in ('xmin', 'xmax', 'ymin', 'ymax')])
+                cls_id = names.index(cls)  # class id
+                out_file.write(" ".join([str(a) for a in (cls_id, *bb)]) + '\n')
+
 
 def predict():
     # Load a model
@@ -169,33 +198,8 @@ if __name__ == "__main__":
     # tracker()
     # onnx()
     # predict()
-    #
-    # def convert_label(path, lb_path, year, image_id):
-    #     def convert_box(size, box):
-    #         dw, dh = 1. / size[0], 1. / size[1]
-    #         x, y, w, h = (box[0] + box[1]) / 2.0 - 1, (box[2] + box[3]) / 2.0 - 1, box[1] - box[0], box[3] - box[2]
-    #         return x * dw, y * dh, w * dw, h * dh
-    #
-    #     in_file = open(path / f'VOC{year}/Annotations/{image_id}.xml')
-    #     out_file = open(lb_path, 'w')
-    #     tree = ET.parse(in_file)
-    #     root = tree.getroot()
-    #     size = root.find('size')
-    #     w = int(size.find('width').text)
-    #     h = int(size.find('height').text)
-    #
-    #     names = ["aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable",
-    #              "dog", "horse", "motorbike", "person",
-    #              "pottedplant", "sheep", "sofa", "train", "tvmonitor"]  # names list
-    #     for obj in root.iter('object'):
-    #         cls = obj.find('name').text
-    #         if cls in names and int(obj.find('difficult').text) != 1:
-    #             xmlbox = obj.find('bndbox')
-    #             bb = convert_box((w, h), [float(xmlbox.find(x).text) for x in ('xmin', 'xmax', 'ymin', 'ymax')])
-    #             cls_id = names.index(cls)  # class id
-    #             out_file.write(" ".join([str(a) for a in (cls_id, *bb)]) + '\n')
-    #
-    #
+
+
     # # Download
     # # dir = Path(yaml['path'])  # dataset root dir
     # dir = Path("../datasets/VOC")  # dataset root dir
@@ -204,7 +208,7 @@ if __name__ == "__main__":
     #         f'{url}VOCtest_06-Nov-2007.zip',  # 438MB, 4953 images
     #         f'{url}VOCtrainval_11-May-2012.zip']  # 1.95GB, 17126 images
     # download(urls, dir=dir / 'images', curl=True, threads=3)
-    #
+
     # # Convert
     # path = dir / 'images/VOCdevkit'
     # for year, image_set in ('2012', 'train'), ('2012', 'val'), ('2007', 'train'), ('2007', 'val'), ('2007', 'test'):
