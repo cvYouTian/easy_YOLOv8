@@ -121,6 +121,7 @@ class YOLO:
             weights (str): model checkpoint to be loaded
             task (str | None): model task
         """
+
         suffix = Path(weights).suffix
         if suffix == '.pt':
             self.model, self.ckpt = attempt_load_one_weight(weights)
