@@ -1,7 +1,7 @@
 """
 Block modules
 """
-
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -12,10 +12,10 @@ from .transformer import TransformerBlock
 __all__ = ('DFL', 'HGBlock', 'HGStem', 'SPP', 'SPPF', 'C1', 'C2', 'C3', 'C2f', 'C3x', 'C3TR', 'C3Ghost',
            'GhostBottleneck', 'Bottleneck', 'BottleneckCSP', 'Proto', 'RepC3', 'PconvBottleneck', 'FasterC2f_N',
            'FasterC2f', 'PconvBottleneck_n', "SCConvBottleneck", "SCConv", "SCC2f", "SC_PW_Bottleneck", "SC_PW_C2f",
-           "SC_Conv3_C2f", "SC_Conv3_Bottleneck", "Conv3_SC_C2f", "Conv3_SC_Bottleneck", "ASFF")
+           "SC_Conv3_C2f", "SC_Conv3_Bottleneck", "Conv3_SC_C2f", "Conv3_SC_Bottleneck", "AsffTribeLevel",
+           "AsffDoubLevel")
 
 
-# kernel, padding, dilation
 def autopad(k, p=None, d=1):
     """Pad to 'same' shape outputs."""
     if d > 1:
@@ -49,19 +49,88 @@ def add_conv(in_ch, out_ch, ksize, stride, leaky=True):
     return stage
 
 
-class ASFF(nn.Module):
+class AsffTribeLevel(nn.Module):
+    def __init__(self, level, rfb=False, vis=False):
+        super(AsffTribeLevel, self).__init__()
+        self.level = level
+        self.dim = [1024, 512, 256]
+        self.inter_dim = self.dim[self.level]
+        # 0 是最深的feature
+        if level == 0:
+            self.stride_level_1 = add_conv(512, self.inter_dim, 3, 2)
+            self.stride_level_2 = add_conv(256, self.inter_dim, 3, 2)
+            self.expand = add_conv(self.inter_dim, 1024, 3, 1)
+        elif level == 1:
+            # FM的维度不变的话就使用，或者减少的话就是就使用1*1卷积
+            self.compress_level_0 = add_conv(1024, self.inter_dim, 1, 1)
+            # FM的维度升高需要使用3*3卷积，并进行下采样
+            self.stride_level_2 = add_conv(256, self.inter_dim, 3, 2)
+            self.expand = add_conv(self.inter_dim, 512, 3, 1)
+        # 2 是最浅的feature
+        elif level == 2:
+            self.compress_level_0 = add_conv(512, self.inter_dim, 1, 1)
+            self.expand = add_conv(self.inter_dim, 256, 3, 1)
+
+        compress_c = 8 if rfb else 16  # when adding rfb, we use half number of channels to save memory
+
+        self.weight_level_0 = add_conv(self.inter_dim, compress_c, 1, 1)
+        self.weight_level_1 = add_conv(self.inter_dim, compress_c, 1, 1)
+        self.weight_level_2 = add_conv(self.inter_dim, compress_c, 1, 1)
+
+        self.weight_levels = nn.Conv2d(compress_c * 3, 3, kernel_size=1, stride=1, padding=0)
+        self.vis = vis
+
+    def forward(self, x_level_0, x_level_1, x_level_2):
+        if self.level == 0:
+            level_0_resized = x_level_0
+            level_1_resized = self.stride_level_1(x_level_1)
+
+            level_2_downsampled_inter = F.max_pool2d(x_level_2, 3, stride=2, padding=1)
+            level_2_resized = self.stride_level_2(level_2_downsampled_inter)
+
+        elif self.level == 1:
+            level_0_compressed = self.compress_level_0(x_level_0)
+            level_0_resized = F.interpolate(level_0_compressed, scale_factor=2, mode='nearest')
+            level_1_resized = x_level_1
+            level_2_resized = self.stride_level_2(x_level_2)
+        elif self.level == 2:
+            level_0_compressed = self.compress_level_0(x_level_0)
+            level_0_resized = F.interpolate(level_0_compressed, scale_factor=4, mode='nearest')
+            level_1_resized = F.interpolate(x_level_1, scale_factor=2, mode='nearest')
+            level_2_resized = x_level_2
+
+        level_0_weight_v = self.weight_level_0(level_0_resized)
+        level_1_weight_v = self.weight_level_1(level_1_resized)
+        level_2_weight_v = self.weight_level_2(level_2_resized)
+        levels_weight_v = torch.cat((level_0_weight_v, level_1_weight_v, level_2_weight_v), 1)
+        levels_weight = self.weight_levels(levels_weight_v)
+        levels_weight = F.softmax(levels_weight, dim=1)
+
+        fused_out_reduced = level_0_resized * levels_weight[:, 0:1, :, :] + \
+                            level_1_resized * levels_weight[:, 1:2, :, :] + \
+                            level_2_resized * levels_weight[:, 2:, :, :]
+
+        out = self.expand(fused_out_reduced)
+
+        if self.vis:
+            return out, levels_weight, fused_out_reduced.sum(dim=1)
+        else:
+            return out
+
+
+class AsffDoubLevel(nn.Module):
     def __init__(self, level):
-        super(ASFF, self).__init__()
+        super(AsffDoubLevel, self).__init__()
         self.level = level
         # self.width_coefficient = width_coefficient
         self.dim = [512, 256]
         self.inter_dim = self.dim[self.level]
         if level == 0:
             self.stride_level_1 = add_conv(256, self.inter_dim, 3, 2)
-            self.expand = add_conv(self.inter_dim, 1024, 3, 1)
+            self.expand = add_conv(self.inter_dim, 512, 3, 1)
         elif level == 1:
             self.compress_level_0 = add_conv(512, self.inter_dim, 1, 1)
-            self.expand = add_conv(self.inter_dim, 512, 3, 1)
+            self.expand = add_conv(self.inter_dim, 256, 3, 1)
 
         compress_c = 16  # when adding rfb, we use half number of channels to save memory
 
@@ -71,7 +140,8 @@ class ASFF(nn.Module):
         self.weight_levels = nn.Conv2d(compress_c * 2, 2, kernel_size=1, stride=1, padding=0)
 
     def forward(self, x):
-        print(x[1].shape)
+        # note : 这里的x是两个
+        print(x[0].shape)
         if self.level == 0:
             level_0_resized = x[0]
             level_1_resized = self.stride_level_1(x[1])

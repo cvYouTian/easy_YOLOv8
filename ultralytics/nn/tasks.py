@@ -8,8 +8,8 @@ from ultralytics.nn.modules import (AIFI, C1, C2, C3, C3TR, SPP, SPPF, Bottlenec
                                     Focus, GhostBottleneck, GhostConv, HGBlock, HGStem, Pose, RepC3, RepConv,
                                     RTDETRDecoder, Segment, PConv, FasterC2f_N, FasterC2f, PconvBottleneck,
                                     PconvBottleneck_n, SCConv, SCConvBottleneck, SCC2f, SC_PW_Bottleneck, SC_PW_C2f,
-                                    SC_Conv3_Bottleneck, SC_Conv3_C2f, Conv3_SC_C2f, Conv3_SC_Bottleneck, ASFF,
-                                    ASFF_Detect)
+                                    SC_Conv3_Bottleneck, SC_Conv3_C2f, Conv3_SC_C2f, Conv3_SC_Bottleneck, AsffTribeLevel,
+                                    AsffDoubLevel, AsffDetect)
 
 from ultralytics.utils import DEFAULT_CFG_DICT, DEFAULT_CFG_KEYS, LOGGER, colorstr, emojis, yaml_load
 from ultralytics.utils.checks import check_requirements, check_suffix, check_yaml
@@ -76,13 +76,16 @@ class BaseModel(nn.Module):
         Returns:
             (torch.Tensor): The last output of the model.
         """
+        # y列表是保存P特征图
         y, dt = [], []  # outputs
         for m in self.model:
             if m.f != -1:  # if not from previous layer
+                # 这里如果是上一层那就直接赋值x模块， 否则就在
                 x = y[m.f] if isinstance(m.f, int) else [x if j == -1 else y[j] for j in m.f]  # from earlier layers
             if profile:
                 self._profile_one_layer(m, x, dt)
             x = m(x)   # run
+            # 判断是不是P特征
             y.append(x if m.i in self.save else None)  # save output
             if visualize:
                 feature_visualization(x, m.type, m.i, save_dir=visualize)
@@ -183,7 +186,7 @@ class BaseModel(nn.Module):
         """
         self = super()._apply(fn)
         m = self.model[-1]  # Detect()
-        if isinstance(m, (Detect, Segment, ASFF_Detect)):
+        if isinstance(m, (Detect, Segment, AsffDetect)):
             m.stride = fn(m.stride)
             m.anchors = fn(m.anchors)
             m.strides = fn(m.strides)
@@ -227,7 +230,7 @@ class DetectionModel(BaseModel):
     # cfg_dict, verbose = verbose and RANK == -1
     def __init__(self, cfg='yolov8n.yaml', ch=3, nc=None, verbose=True):  # model, input channels, number of classes
         super().__init__()
-        # 如果传进来的是一个字典，则直接使用，如果是别的在加载成字典
+        # 如果传进来的是一部字典，则直接使用，如果是别的在加载成字典
         self.yaml = cfg if isinstance(cfg, dict) else yaml_model_load(cfg)  # cfg dict
         # 添加模型的输入通道
         # {'nc': 6, 'scales': [1.0, 1.0, 512], 'backbone':[], "head":[], "yaml_file": "./././", "ch": 3}
@@ -247,7 +250,7 @@ class DetectionModel(BaseModel):
 
         # Build strides
         m = self.model[-1]  # Detect()
-        if isinstance(m, (Detect, Segment, Pose, ASFF_Detect)):
+        if isinstance(m, (Detect, Segment, Pose, AsffDetect)):
             s = 256  # 2x min stride
             m.inplace = self.inplace
             # 这里根据m的类型调用父类的forward(x)
@@ -613,7 +616,7 @@ def attempt_load_weights(weights, device=None, inplace=True, fuse=False):
     # Module compatibility updates
     for m in ensemble.modules():
         t = type(m)
-        if t in (nn.Hardswish, nn.LeakyReLU, nn.ReLU, nn.ReLU6, nn.SiLU, Detect, Segment, ASFF_Detect):
+        if t in (nn.Hardswish, nn.LeakyReLU, nn.ReLU, nn.ReLU6, nn.SiLU, Detect, Segment, AsffDetect):
             m.inplace = inplace  # torch 1.7.0 compatibility
         elif t is nn.Upsample and not hasattr(m, 'recompute_scale_factor'):
             m.recompute_scale_factor = None  # torch 1.11.0 compatibility
@@ -650,7 +653,7 @@ def attempt_load_one_weight(weight, device=None, inplace=True, fuse=False):
     # Module compatibility updates
     for m in model.modules():
         t = type(m)
-        if t in (nn.Hardswish, nn.LeakyReLU, nn.ReLU, nn.ReLU6, nn.SiLU, Detect, Segment, ASFF_Detect):
+        if t in (nn.Hardswish, nn.LeakyReLU, nn.ReLU, nn.ReLU6, nn.SiLU, Detect, Segment, AsffDetect):
             m.inplace = inplace  # torch 1.7.0 compatibility
         elif t is nn.Upsample and not hasattr(m, 'recompute_scale_factor'):
             m.recompute_scale_factor = None  # torch 1.11.0 compatibility
@@ -703,12 +706,16 @@ def parse_model(d, ch, verbose=True):
     # from, number, module, args
     for i, (f, n, m, args) in enumerate(d['backbone'] + d['head']):
         # 这里使用getattr函数获得某一类的方法， 使用globals的内置函数返回全部全局变量
+        # 拿到函数模块
         m = getattr(torch.nn, m[3:]) if 'nn.' in m else globals()[m]  # get module
+        # 处理args
         for j, a in enumerate(args):
+            # 如果是None，"nearest", nc
             if isinstance(a, str):
+                # 抑制值错误
                 with contextlib.suppress(ValueError):
                     args[j] = locals()[a] if a in locals() else ast.literal_eval(a)
-        # 设计模块的重复次数
+        # 设计模块的重复次数number
         n = n_ = max(round(n * depth), 1) if n > 1 else n  # depth gain
         # add FasterC2f and PconvBottleneck and PConv
         # 使用元组作循环更高效
@@ -734,8 +741,9 @@ def parse_model(d, ch, verbose=True):
 
             if c2 != nc:  # if c2 not equal to number of classes (i.e. for Classify() output)
                 c2 = make_divisible(min(c2, max_channels) * width, 8)
-            # 使用*表达式将内部的args列表解开
+            # 使用*表达式将内部的args列表解开， [输入的chanel， 输出的chanel，]
             args = [c1, c2, *args[1:]]
+
             if m in (BottleneckCSP, C1, C2, C2f, C3, C3TR, C3Ghost, C3x, RepC3, FasterC2f_N, FasterC2f, SCC2f,
                      SC_PW_C2f, SC_Conv3_C2f, Conv3_SC_C2f):
                 args.insert(2, n)  # number of repeats
@@ -754,9 +762,15 @@ def parse_model(d, ch, verbose=True):
             args = [ch[f]]
         elif m is Concat:
             c2 = sum(ch[x] for x in f)
-        elif m is ASFF:
-            c2 = 512 if 18 in f else 1024
-        elif m in (Detect, Segment, Pose, ASFF_Detect):
+        elif m in (AsffDoubLevel, AsffTribeLevel):
+            if m is AsffDoubLevel:
+                c2 = 256 if 18 in f else 512
+                # c2 = 512 if 18 in f else 512
+            # if args[-1] == 0:
+            #     c2 = 512
+            # elif args[-1] == 1:
+            #     c2 = 1024
+        elif m in (Detect, Segment, Pose, AsffDetect):
             args.append([ch[x] for x in f])
             if m is Segment:
                 args[2] = make_divisible(min(args[2], max_channels) * width, 8)
@@ -844,7 +858,7 @@ def guess_model_task(model):
         if m in ('classify', 'classifier', 'cls', 'fc'):
             return 'classify'
         # 在这里我加上了asff的检测头。
-        if m == 'detect' or "asff_detect":
+        if m == 'detect' or "asffdetect":
             return 'detect'
         if m == 'segment':
             return 'segment'
@@ -868,7 +882,7 @@ def guess_model_task(model):
         for m in model.modules():
             if isinstance(m, Detect):
                 return 'detect'
-            elif isinstance(m, ASFF_Detect):
+            elif isinstance(m, AsffDetect):
                 return "detect"
             elif isinstance(m, Segment):
                 return 'segment'

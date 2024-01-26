@@ -13,7 +13,7 @@ from .conv import Conv, SRU, CRU, FC
 from .transformer import MLP, DeformableTransformerDecoder, DeformableTransformerDecoderLayer
 from .utils import bias_init_with_prob, linear_init_
 
-__all__ = 'Detect', 'Segment', 'Pose', 'Classify', 'RTDETRDecoder', "ASFF_Detect"
+__all__ = 'Detect', 'Segment', 'Pose', 'Classify', 'RTDETRDecoder', "AsffDetect"
 
 
 class Detect(nn.Module):
@@ -35,6 +35,7 @@ class Detect(nn.Module):
         self.stride = torch.zeros(self.nl)  # strides computed during build
         # chanel[0]是细粒度最丰富的feat
         c2, c3 = max((16, ch[0] // 4, self.reg_max * 4)), max(ch[0], min(self.nc, 100))  # channels
+        print(ch)
         # cv2 is Bbox head
         self.cv2 = nn.ModuleList(
             nn.Sequential(Conv(x, c2, 3), Conv(c2, c2, 3), nn.Conv2d(c2, 4 * self.reg_max, 1))
@@ -55,6 +56,7 @@ class Detect(nn.Module):
         """
         # achieve picture's shape
         shape = x[0].shape  # BCHW
+        print(1)
         # 将两种不同的尺寸的featuremap的chanel打成相同的
         for i in range(self.nl):
             # x is a list
@@ -98,7 +100,7 @@ class Detect(nn.Module):
             b[-1].bias.data[:m.nc] = math.log(5 / m.nc / (640 / s) ** 2)  # cls (.01 objects, 80 classes, 640 img)
 
 
-class ASFF_Detect(nn.Module):
+class AsffDetect(nn.Module):
     """Faster-YOLOv8 Detect head for detection models."""
     dynamic = False  # force grid reconstruction
     export = False  # export mode
