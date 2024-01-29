@@ -50,20 +50,23 @@ def add_conv(in_ch, out_ch, ksize, stride, leaky=True):
 
 
 class AsffTribeLevel(nn.Module):
-    def __init__(self, level, rfb=False, vis=False):
+    def __init__(self, level):
         super(AsffTribeLevel, self).__init__()
         self.level = level
-        self.dim = [1024, 512, 256]
+        self.dim = [512, 512, 256]
         self.inter_dim = self.dim[self.level]
         # 0 是最深的feature
         if level == 0:
-            self.stride_level_1 = add_conv(512, self.inter_dim, 3, 2)
+            # self.stride_level_1 = add_conv(512, self.inter_dim, 3, 2)
+            # TODO: 这里x和l版本的最后P5的输出不是1024，而是512， 做一根据ASFF（FM的维度不变的话就使用，
+            #  或者减少的话就是就使用1*1卷积）这一特性，我将ksize参数改为了1
+            self.stride_level_1 = add_conv(512, self.inter_dim, 1, 2)
             self.stride_level_2 = add_conv(256, self.inter_dim, 3, 2)
-            self.expand = add_conv(self.inter_dim, 1024, 3, 1)
+            self.expand = add_conv(self.inter_dim, 512, 3, 1)
         elif level == 1:
             # FM的维度不变的话就使用，或者减少的话就是就使用1*1卷积
-            self.compress_level_0 = add_conv(1024, self.inter_dim, 1, 1)
-            # FM的维度升高需要使用3*3卷积，并进行下采样
+            self.compress_level_0 = add_conv(512, self.inter_dim, 1, 1)
+            # FM的维度升高需要使用3*3卷积he下采样
             self.stride_level_2 = add_conv(256, self.inter_dim, 3, 2)
             self.expand = add_conv(self.inter_dim, 512, 3, 1)
         # 2 是最浅的feature
@@ -71,33 +74,33 @@ class AsffTribeLevel(nn.Module):
             self.compress_level_0 = add_conv(512, self.inter_dim, 1, 1)
             self.expand = add_conv(self.inter_dim, 256, 3, 1)
 
-        compress_c = 8 if rfb else 16  # when adding rfb, we use half number of channels to save memory
+        compress_c = 16   # when adding rfb, we use half number of channels to save memory
 
         self.weight_level_0 = add_conv(self.inter_dim, compress_c, 1, 1)
         self.weight_level_1 = add_conv(self.inter_dim, compress_c, 1, 1)
         self.weight_level_2 = add_conv(self.inter_dim, compress_c, 1, 1)
 
         self.weight_levels = nn.Conv2d(compress_c * 3, 3, kernel_size=1, stride=1, padding=0)
-        self.vis = vis
 
-    def forward(self, x_level_0, x_level_1, x_level_2):
+    def forward(self, x):
+        print(x[0].shape, x[1].shape, x[2].shape)
         if self.level == 0:
-            level_0_resized = x_level_0
-            level_1_resized = self.stride_level_1(x_level_1)
-
-            level_2_downsampled_inter = F.max_pool2d(x_level_2, 3, stride=2, padding=1)
+            level_0_resized = x[0]
+            level_1_resized = self.stride_level_1(x[1])
+            level_2_downsampled_inter = F.max_pool2d(x[2], 3, stride=2, padding=1)
             level_2_resized = self.stride_level_2(level_2_downsampled_inter)
 
         elif self.level == 1:
-            level_0_compressed = self.compress_level_0(x_level_0)
+            level_0_compressed = self.compress_level_0(x[0])
             level_0_resized = F.interpolate(level_0_compressed, scale_factor=2, mode='nearest')
-            level_1_resized = x_level_1
-            level_2_resized = self.stride_level_2(x_level_2)
+            level_1_resized = x[1]
+            level_2_resized = self.stride_level_2(x[2])
+
         elif self.level == 2:
-            level_0_compressed = self.compress_level_0(x_level_0)
+            level_0_compressed = self.compress_level_0(x[0])
             level_0_resized = F.interpolate(level_0_compressed, scale_factor=4, mode='nearest')
-            level_1_resized = F.interpolate(x_level_1, scale_factor=2, mode='nearest')
-            level_2_resized = x_level_2
+            level_1_resized = F.interpolate(x[1], scale_factor=2, mode='nearest')
+            level_2_resized = x[2]
 
         level_0_weight_v = self.weight_level_0(level_0_resized)
         level_1_weight_v = self.weight_level_1(level_1_resized)
@@ -112,10 +115,8 @@ class AsffTribeLevel(nn.Module):
 
         out = self.expand(fused_out_reduced)
 
-        if self.vis:
-            return out, levels_weight, fused_out_reduced.sum(dim=1)
-        else:
-            return out
+
+        return out
 
 
 class AsffDoubLevel(nn.Module):
@@ -141,7 +142,7 @@ class AsffDoubLevel(nn.Module):
 
     def forward(self, x):
         # note : 这里的x是两个
-        print(x[0].shape)
+        # print(x[0].shape)
         if self.level == 0:
             level_0_resized = x[0]
             level_1_resized = self.stride_level_1(x[1])
@@ -393,6 +394,7 @@ class SC_Conv3_C2f(C2f):
         self.c = int(c2 * e)
         self.m = nn.ModuleList(SC_Conv3_Bottleneck(self.c, self.c, shortcut, g, k=((3, 3), (3, 3)),
                                                e=1.0) for _ in range(n))
+
 
 class Conv3_SC_C2f(C2f):
     """

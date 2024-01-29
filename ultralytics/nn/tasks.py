@@ -79,9 +79,12 @@ class BaseModel(nn.Module):
         # y列表是保存P特征图
         y, dt = [], []  # outputs
         for m in self.model:
+            # it is Concat operation if m.f not is -1
             if m.f != -1:  # if not from previous layer
-                # 这里如果是上一层那就直接赋值x模块， 否则就在
                 x = y[m.f] if isinstance(m.f, int) else [x if j == -1 else y[j] for j in m.f]  # from earlier layers
+            # 这里添加了一个判断，此判断是为了判断是不是使用了Asff头
+            # elif -1 not in m.f:
+
             if profile:
                 self._profile_one_layer(m, x, dt)
             x = m(x)   # run
@@ -94,7 +97,8 @@ class BaseModel(nn.Module):
     def _predict_augment(self, x):
         """Perform augmentations on input image x and return augmented inference."""
         LOGGER.warning(
-            f'WARNING ⚠️ {self.__class__.__name__} has not supported augment inference yet! Now using single-scale inference instead.'
+            f'WARNING ⚠️ {self.__class__.__name__} '
+            f'has not supported augment inference yet! Now using single-scale inference instead.'
         )
         return self._predict_once(x)
 
@@ -304,7 +308,6 @@ class DetectionModel(BaseModel):
         i = (y[-1].shape[-1] // g) * sum(4 ** (nl - 1 - x) for x in range(e))  # indices
         y[-1] = y[-1][..., i:]  # small
         return y
-
 
     # 重写了BaseModel的init_criterion()
     def init_criterion(self):
@@ -664,8 +667,6 @@ def attempt_load_one_weight(weight, device=None, inplace=True, fuse=False):
 
 # 将model文件的字典信息转化为pytorch的模型结构
 def parse_model(d, ch, verbose=True):
-    # {'nc': 6, 'scales': [1.0, 1.0, 512], 'backbone':[], "head":[],
-    # "yaml_file": "./././", "ch": 3} ch= 3, True
     """Parse a YOLO model.yaml dictionary into a PyTorch model."""
     import ast
 
@@ -681,7 +682,6 @@ def parse_model(d, ch, verbose=True):
     if scales:
         scale = d.get('scale')
         if not scale:
-            #
             scale = tuple(scales.keys())[0]
             LOGGER.warning(f"WARNING ⚠️ no model scale passed. Assuming scale='{scale}'.")
         # 给scale赋值
@@ -704,34 +704,22 @@ def parse_model(d, ch, verbose=True):
     layers, save, c2 = [], [], ch[-1]
 
     # from, number, module, args
+    # args[output_chanel, input_chanel, stride]
     for i, (f, n, m, args) in enumerate(d['backbone'] + d['head']):
         # 这里使用getattr函数获得某一类的方法， 使用globals的内置函数返回全部全局变量
-        # 拿到函数模块
+        # 判断是否为上采样操作
         m = getattr(torch.nn, m[3:]) if 'nn.' in m else globals()[m]  # get module
-        # 处理args
+        # 判断args
         for j, a in enumerate(args):
-            # 如果是None，"nearest", nc
+            # 如果是None，"nearest", nc, True
             if isinstance(a, str):
                 # 抑制值错误
                 with contextlib.suppress(ValueError):
                     args[j] = locals()[a] if a in locals() else ast.literal_eval(a)
-        # 设计模块的重复次数number
+        # 判断repeats
         n = n_ = max(round(n * depth), 1) if n > 1 else n  # depth gain
-        # add FasterC2f and PconvBottleneck and PConv
-        # 使用元组作循环更高效
-        """
-              # [from, repeats, module, args]
-              - [-1, 1, Conv, [64, 3, 2]]  # 0-P1/2
-              - [-1, 1, Conv, [128, 3, 2]]  # 1-P2/4
-              - [-1, 3, FasterC2f_N, [128, True]]
-              - [-1, 1, Conv, [256, 3, 2]]  # 3-P3/8
-              - [-1, 6, FasterC2f_N, [256, True]]
-              - [-1, 1, Conv, [512, 3, 2]]  # 5-P4/16
-              - [-1, 6, FasterC2f_N, [512, True]]
-              - [-1, 1, Conv, [1024, 3, 2]]  # 7-P5/32
-              - [-1, 3, FasterC2f_N, [1024, True]]
-              - [-1, 1, SPPF, [1024, 5]]  # 9
-        """
+        # add FasterC2f 、PconvBottleneck and PConv ...
+        # 判断moudule
         if m in (Classify, Conv, ConvTranspose, GhostConv, Bottleneck, GhostBottleneck, SPP, SPPF, DWConv, Focus,
                  BottleneckCSP, C1, C2, C2f, C3, C3TR, C3Ghost, nn.ConvTranspose2d, DWConvTranspose2d, C3x, RepC3,
                  FasterC2f_N, FasterC2f, PconvBottleneck, PconvBottleneck_n, PConv, SCConv, SCConvBottleneck, SCC2f,
@@ -739,7 +727,9 @@ def parse_model(d, ch, verbose=True):
             # 输入的chanel和输出的chanel
             c1, c2 = ch[f], args[0]
 
+            # 如果这里的输出nc恰好和c2相同该如何
             if c2 != nc:  # if c2 not equal to number of classes (i.e. for Classify() output)
+                # 将这一层的输出乘以width得到最终的输出。使用make_divisible()函数来实现输出通道可被8整除。
                 c2 = make_divisible(min(c2, max_channels) * width, 8)
             # 使用*表达式将内部的args列表解开， [输入的chanel， 输出的chanel，]
             args = [c1, c2, *args[1:]]
@@ -764,12 +754,9 @@ def parse_model(d, ch, verbose=True):
             c2 = sum(ch[x] for x in f)
         elif m in (AsffDoubLevel, AsffTribeLevel):
             if m is AsffDoubLevel:
-                c2 = 256 if 18 in f else 512
-                # c2 = 512 if 18 in f else 512
-            # if args[-1] == 0:
-            #     c2 = 512
-            # elif args[-1] == 1:
-            #     c2 = 1024
+                c2 = 512 if args[0] == 0 else 256
+            elif m is AsffTribeLevel:
+                c2 = 512 if args[0] == 0 or 1 else 256
         elif m in (Detect, Segment, Pose, AsffDetect):
             args.append([ch[x] for x in f])
             if m is Segment:
