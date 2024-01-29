@@ -83,8 +83,6 @@ class BaseModel(nn.Module):
             if m.f != -1:  # if not from previous layer
                 x = y[m.f] if isinstance(m.f, int) else [x if j == -1 else y[j] for j in m.f]  # from earlier layers
             # 这里添加了一个判断，此判断是为了判断是不是使用了Asff头
-            # elif -1 not in m.f:
-
             if profile:
                 self._profile_one_layer(m, x, dt)
             x = m(x)   # run
@@ -756,7 +754,7 @@ def parse_model(d, ch, verbose=True):
             if m is AsffDoubLevel:
                 c2 = 512 if args[0] == 0 else 256
             elif m is AsffTribeLevel:
-                c2 = 512 if args[0] == 0 or 1 else 256
+                c2 = 512 if args[0] in (0, 1) else 256
         elif m in (Detect, Segment, Pose, AsffDetect):
             args.append([ch[x] for x in f])
             if m is Segment:

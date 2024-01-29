@@ -42,4 +42,4 @@ head:
   - [[18, 15], 1, AsffDoubLevel, [0]] # 19
   - [[18, 15], 1, AsffDoubLevel, [1]] # 20
 
-  - [[19, 20], 1, AsffDetect, [nc]]  # Detect(P3, P4, P5)
+  - [[20, 19], 1, AsffDetect, [nc]]  # Detect(P3, P4, P5)
