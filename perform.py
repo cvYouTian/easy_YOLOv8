@@ -1,3 +1,4 @@
+import shutil
 import sys
 import os
 import xml.etree.ElementTree as ET
@@ -78,19 +79,23 @@ def test_video():
     cap.release()
 
 
-def test_folders(model_path: str = "/home/youtian/Documents/pro/pyCode/easy_YOLOv8/runs/detect/YOLOv8l/weights/best.pt",
+def test_folders(model_path: str = "/home/youtian/Documents/pro/pyCode/easy_YOLOv8/runs/detect/YOLOv8-faster1.0-HSTS6"
+                                   "/train54/weights/best.pt",
                  srcpath: str = "/home/youtian/Documents/pro/project/2023海上高速目标检测/HSTS6/images/val") -> None:
+    # 加载权重model
     model = YOLO(model_path)
-    srcpath = Path(srcpath) if not isinstance(srcpath, Path) else srcpath
-    dstpath = sys.path[0]
-    dstpath = Path(dstpath) / Path(str(time.time())[-10:])
-    os.mkdir(dstpath)
-    for index, i in enumerate(srcpath.iterdir()):
-        res = model(cv2.imread(str(i)))
-        ann = res[0].plot()
+
+    src = Path(srcpath) if not isinstance(srcpath, Path) else srcpath
+    dst_folder = Path(sys.path[0]) / Path("val_test_pic")
+    if dst_folder.exists():
+        shutil.rmtree(dst_folder) if any(dst_folder.iterdir()) else dst_folder.rmdir()
+    dst_folder.mkdir(exist_ok=True, parents=True)
+    for img_path in src.iterdir():
+        res = model(cv2.imread(str(img_path)))
+        img = res[0].plot()
         # 把测试的图片提前resize成相同的size
-        ann = cv2.resize(ann, (640, 640))
-        cv2.imwrite(str(Path(dstpath) / Path("{}.jpg".format(index))), ann)
+        ann = cv2.resize(img, (640, 640))
+        cv2.imwrite(str(Path(dst_folder) / Path(img_path.name)), ann)
 
 
 def tracker():
@@ -218,10 +223,29 @@ def predict():
     print(metrics.box.maps)  # 包含每个类别的map50-95列表
 
 
+def calc_instance(label_path=r"/home/youtian/Documents/pro/pyCode/datasets/HSTS6/labels"):
+    map = {0: "speedboat",
+              1: "motorboat",
+              2: "surfing",
+              3: "airplane",
+              4: "seabird",
+              5: "missile"}
+    counters = {label: 0 for label in map.values()}
+    label_path =Path(label_path) if not isinstance(label_path, Path) else label_path
+    l = label_path.rglob("*.txt")
+    for idx, i in tqdm(enumerate(l)):
+        with open(i, "r") as file:
+            instances = [int(line.strip()[0]) for line in file.readlines()]
+            for instance in instances:
+                counters[map[instance]] += 1
+    print(counters)
+
+
 if __name__ == "__main__":
-    train()
+    # calc_instance()
+    # train()
     # test_video()
-    # test_folders()
+    test_folders()
     # test_img()
     # tracker()
     # onnx()
