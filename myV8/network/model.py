@@ -108,7 +108,6 @@ class C2f(nn.Module):
         #
 
 
-
 class YOLOv8l(nn.Module):
     def __init__(self):
         super(YOLOv8l, self).__init__()
