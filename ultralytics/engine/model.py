@@ -65,6 +65,7 @@ class YOLO:
         else:
             self._load(model, task)
 
+    # call mothed is first
     def __call__(self, source=None, stream=False, **kwargs):
         """Calls the 'predict' function with given arguments to perform object detection."""
         return self.predict(source, stream, **kwargs)
@@ -203,12 +204,15 @@ class YOLO:
         Returns:
             (List[ultralytics.engine.results.Results]): The prediction results.
         """
+        # 没有数据就去网站下载图片来做测试
         if source is None:
             source = ROOT / 'assets' if is_git_dir() else 'https://ultralytics.com/images/bus.jpg'
             LOGGER.warning(f"WARNING ⚠️ 'source' is missing. Using 'source={source}'.")
+        # 用命令行来测试
         is_cli = (sys.argv[0].endswith('yolo') or sys.argv[0].endswith('ultralytics')) and any(
             x in sys.argv for x in ('predict', 'track', 'mode=predict', 'mode=track'))
         overrides = self.overrides.copy()
+        # 置信度
         overrides['conf'] = 0.25
         overrides.update(kwargs)  # prefer kwargs
         overrides['mode'] = kwargs.get('mode', 'predict')

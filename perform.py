@@ -1,4 +1,5 @@
 import shutil
+import time
 import sys
 import os
 import xml.etree.ElementTree as ET
@@ -79,8 +80,7 @@ def test_video():
     cap.release()
 
 
-def test_folders(model_path: str = "/home/youtian/Documents/pro/pyCode/easy_YOLOv8/runs/detect/YOLOv8-faster1.0-HSTS6"
-                                   "/train54/weights/best.pt",
+def test_folders(model_path: str = "/home/youtian/Documents/pro/pyCode/easy_YOLOv8/runs/detect/YOLOv8l/weights/best.pt",
                  srcpath: str = "/home/youtian/Documents/pro/project/2023海上高速目标检测/HSTS6/images/val") -> None:
     # 加载权重model
     model = YOLO(model_path)
@@ -90,13 +90,19 @@ def test_folders(model_path: str = "/home/youtian/Documents/pro/pyCode/easy_YOLO
     if dst_folder.exists():
         shutil.rmtree(dst_folder) if any(dst_folder.iterdir()) else dst_folder.rmdir()
     dst_folder.mkdir(exist_ok=True, parents=True)
+    timer = 0
     for img_path in src.iterdir():
+        start_timer = time.time()
         res = model(cv2.imread(str(img_path)))
-        img = res[0].plot()
+        end_timer = time.time()
+        timer += end_timer - start_timer
+        # img = res[0].plot()
         # 把测试的图片提前resize成相同的size
-        ann = cv2.resize(img, (640, 640))
-        cv2.imwrite(str(Path(dst_folder) / Path(img_path.name)), ann)
+        # ann = cv2.resize(img, (640, 640))
+        # cv2.imwrite(str(Path(dst_folder) / Path(img_path.name)), ann)
 
+    # 计算每一张的推理时间
+    print("test time : %f" % (timer / len(list(src.iterdir()))))
 
 def tracker():
     pa = "/home/you/Downloads/l.mp4"

@@ -27,6 +27,7 @@ Usage - formats:
                               yolov8n_edgetpu.tflite     # TensorFlow Edge TPU
                               yolov8n_paddle_model       # PaddlePaddle
 """
+
 import platform
 from pathlib import Path
 
@@ -240,6 +241,7 @@ class BasePredictor:
         for batch in self.dataset:
             self.run_callbacks('on_predict_batch_start')
             self.batch = batch
+            # 将batch几个变量
             path, im0s, vid_cap, s = batch
 
             # Preprocess

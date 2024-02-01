@@ -521,7 +521,8 @@ class PconvBottleneck(nn.Module):
         c_ = int(c2 * e)  # hidden channels
         self.fasterblock = nn.Sequential(
             PConv(dim=c1, n_div=4),
-            Conv(c1=c1, c2=c_, k=1, s=1),
+            # 使用33卷机稳定
+            Conv(c1=c1, c2=c_, k=3, s=1, p=1),
         )
         self.conv = nn.Conv2d(in_channels=c_, out_channels=c2, kernel_size=1, stride=1,
             padding=autopad(k=1, p=None, d=1), groups=g, bias=False)
