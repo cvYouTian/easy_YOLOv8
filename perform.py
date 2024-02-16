@@ -3,6 +3,9 @@ import time
 import sys
 import os
 import xml.etree.ElementTree as ET
+
+import numpy as np
+
 from ultralytics.utils.downloads import download
 from pathlib import Path
 from typing import Union
@@ -10,7 +13,9 @@ import cv2
 import netron
 import time
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 from ultralytics import YOLO
+import pandas as pd
 
 
 def train():
@@ -246,12 +251,51 @@ def calc_instance(label_path=r"/home/youtian/Documents/pro/pyCode/datasets/HSTS6
                 counters[map[instance]] += 1
     print(counters)
 
+def loss_compara_pic(path:Union[Path, str]):
+    """
+        easy_YOLOv8
+            loss_csv
+                xxxresult.csv
+                ...csv
+            ...
+            ...
+            perform.py
+
+    """
+    pa = path if isinstance(path, Path) else Path(path)
+
+    FasterYOLOv8l = pd.read_csv(pa / Path("faster_yolov8l.csv"))
+    YOLOv8l = pd.read_csv(pa / Path("yolov8l.csv"))
+    YOLOv8m = pd.read_csv(pa / Path("yolov8m.csv"))
+    YOLOv5l = pd.read_csv(pa / Path("yolov5l.csv"))
+    YOLOv7 = pd.read_csv(pa / Path("yolov7.csv"))
+    column = "         train/dfl_loss"
+    column_data1 = FasterYOLOv8l[column][0:100]
+    column_data2 = YOLOv8l[column][0:100]
+    column_data3 = YOLOv8m[column][0:100]
+    column_data4 = YOLOv5l[column][0:100]
+    column_data5 = YOLOv7[column][0:100]
+    plt.plot(column_data1, label="FasterYOLOv8l", color="blue")
+    plt.plot(column_data2, label="YOLOv8l", color="red")
+    plt.plot(column_data3, label="YOLOv8m", color="green")
+    plt.plot(column_data4, label="YOLOv5l", color="orange")
+    plt.plot(column_data5, label="YOLOv7", color="purple")
+    plt.title("Loss comparison")
+    plt.xlabel("epoch")
+    plt.ylabel("loss")
+    plt.ylim(1.0, 2.0)
+    plt.xlim(0, 100)
+
+    plt.legend()
+    plt.show()
+
 
 if __name__ == "__main__":
+    loss_compara_pic("./loss_csv")
     # calc_instance()
     # train()
     # test_video()
-    test_folders()
+    # test_folders()
     # test_img()
     # tracker()
     # onnx()
