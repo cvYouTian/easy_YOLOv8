@@ -89,8 +89,8 @@ class AsffTribeLevel(nn.Module):
 
         elif self.level == 1:
             # 直接拿到x[0]的信息， 因为纬度没有改变
-            level_0_cmpressed = self.compress_level_0(x[0])
-            level_0_resized = F.interpolate(level_0_cmpressed, scale_factor=2, mode='nearest')
+            level_0_compressed = self.compress_level_0(x[0])
+            level_0_resized = F.interpolate(level_0_compressed, scale_factor=2, mode='nearest')
             level_1_resized = x[1]
             level_2_resized = self.stride_level_2(x[2])
 
