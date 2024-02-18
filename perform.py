@@ -291,9 +291,9 @@ def loss_compara_pic(path:Union[Path, str]):
 
 
 if __name__ == "__main__":
-    loss_compara_pic("./loss_csv")
+    # loss_compara_pic("./loss_csv")
     # calc_instance()
-    # train()
+    train()
     # test_video()
     # test_folders()
     # test_img()

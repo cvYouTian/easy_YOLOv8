@@ -57,15 +57,12 @@ class AsffTribeLevel(nn.Module):
         self.inter_dim = self.dim[self.level]
         # 0 是最深的feature
         if level == 0:
-            # TODO: 这里x和l版本的最后P5的输出不是1024，而是512， 做一根据ASFF（FM的维度不变的话就使用，
-            #  或者减少的话就是就使用1*1卷积）这一特性，直接做下采样
-            self.stride_level_1 = nn.MaxPool2d(kernel_size=2, stride=2)
+            # self.stride_level_1 = nn.MaxPool2d(kernel_size=2, stride=2)
+            self.stride_level_1 = add_conv(512, self.inter_dim, 3, 2)
             self.stride_level_2 = add_conv(256, self.inter_dim, 3, 2)
             self.expand = add_conv(self.inter_dim, 512, 3, 1)
         elif level == 1:
-            # FM的维度不变的话就使用，或者减少的话就是就使用1*1卷积
-            # FM的维度升高需要使用3*3卷积he下采样
-            # TODO 因为纬度没有变，所以可以直接拿到
+            self.compress_level_0 = add_conv(512, self.inter_dim, 1, 1)
             self.stride_level_2 = add_conv(256, self.inter_dim, 3, 2)
             self.expand = add_conv(self.inter_dim, 512, 3, 1)
         # 2 是最浅的feature
@@ -84,7 +81,6 @@ class AsffTribeLevel(nn.Module):
         self.weight_levels = nn.Conv2d(compress_c * 3, 3, kernel_size=1, stride=1, padding=0)
 
     def forward(self, x):
-        # print(x[0].shape, x[1].shape, x[2].shape)
         if self.level == 0:
             level_0_resized = x[0]
             level_1_resized = self.stride_level_1(x[1])
@@ -93,7 +89,8 @@ class AsffTribeLevel(nn.Module):
 
         elif self.level == 1:
             # 直接拿到x[0]的信息， 因为纬度没有改变
-            level_0_resized = F.interpolate(x[0], scale_factor=2, mode='nearest')
+            level_0_cmpressed = self.compress_level_0(x[0])
+            level_0_resized = F.interpolate(level_0_cmpressed, scale_factor=2, mode='nearest')
             level_1_resized = x[1]
             level_2_resized = self.stride_level_2(x[2])
 
