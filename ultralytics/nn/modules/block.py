@@ -314,6 +314,7 @@ class C2(nn.Module):
 
     def forward(self, x):
         """Forward pass through the CSP bottleneck with 2 convolutions."""
+        # 1纬度是chanel纬度
         a, b = self.cv1(x).chunk(2, 1)
         return self.cv2(torch.cat((self.m(a), b), 1))
 
@@ -415,7 +416,7 @@ class SC_PW_PW_C2f(C2f):
         super().__init__(c1, c2, n, shortcut, g, e)
         self.c = int(c2 * e)
         self.m = nn.ModuleList(SC_PW_PW_Bottleneck(self.c, self.c, shortcut, g, k=((3, 3), (3, 3)),
-                                               e = 1.0) for _ in range(n))
+                                               e=1.0) for _ in range(n))
 
 class C3(nn.Module):
     """CSP Bottleneck with 3 convolutions."""
