@@ -1,7 +1,5 @@
 # Ultralytics YOLO 🚀, AGPL-3.0 license
-
 import torch
-
 from ultralytics.engine.predictor import BasePredictor
 from ultralytics.engine.results import Results
 from ultralytics.utils import DEFAULT_CFG, ROOT, ops
@@ -9,6 +7,7 @@ from ultralytics.utils import DEFAULT_CFG, ROOT, ops
 
 class DetectionPredictor(BasePredictor):
 
+    # 后处理使用非极大值抑制
     def postprocess(self, preds, img, orig_imgs):
         """Postprocesses predictions and returns a list of Results objects."""
         preds = ops.non_max_suppression(preds,

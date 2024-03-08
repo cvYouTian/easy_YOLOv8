@@ -112,7 +112,6 @@ class YOLO:
         # 定义detect任务
         self.model.task = self.task
 
-
     # 预训练的模型加载
     def _load(self, weights: str, task=None):
         """

@@ -1,7 +1,14 @@
 import torch
+import cv2
+from PIL import Image
 from torch import nn
 import torch.nn.functional as F
 from typing import Union
+import numpy as np
+from torchvision import transforms
+import matplotlib.pyplot as plt
+import math
+from pathlib import Path
 
 
 def auto_padding(kernel_size, pad=None):
@@ -58,6 +65,7 @@ class Bottleneck(nn.Module):
                           kernel_size=kernel_size,
                           stride=1,
                           padding=auto_padding(kernel_size=kernel_size))
+
         self.conv2 = Conv(input_chanel=int(out_channel * 0.5),
                           output_chanel=out_channel,
                           kernel_size=kernel_size,
@@ -68,11 +76,11 @@ class Bottleneck(nn.Module):
         if self.shortcut:
             x0 = self.conv1(x)
             x1 = self.conv2(x0)
-            out = x0 + x1
+            logits = x0 + x1
         else:
             x0 = self.conv1(x)
-            out = self.conv2(x0)
-        return out
+            logits = self.conv2(x0)
+        return logits
 
 
 class C2f(nn.Module):
@@ -87,6 +95,7 @@ class C2f(nn.Module):
                           kernel_size=1,
                           stride=1,
                           padding=auto_padding(kernel_size=1, pad=None))
+
         self.conv2 = Conv(input_chanel=int(out_channel * 0.5 * 3),
                           output_chanel=out_channel,
                           kernel_size=1,
@@ -101,50 +110,53 @@ class C2f(nn.Module):
         x = self.conv2(torch.cat(module, 1))
         return x
 
-        # x = self.conv1(x)
-        # x0, x1 = torch.split(x, [self.out_channel*0.5, self.out_channel*0.5], dim=1)
-        # x2 = [i(x) for i in self.bottleneck]
-        # x3 = torch.cat(x2, dim=1)
-        #
-
 
 class YOLOv8l(nn.Module):
     def __init__(self):
         super(YOLOv8l, self).__init__()
         # backbone
         self.conv_0 = Conv(3, 64, 3, 2,
-                           padding=auto_padding(kernel_size=3, pad=None)),
+                           padding=auto_padding(3, None))
+
         self.conv_1 = Conv(64, 128, 3, 2,
-                           padding=auto_padding(kernel_size=3, pad=None)),
-        self.c2f_2 = C2f(True, 3, 128, 128),
+                           padding=auto_padding(3, None))
+
+        self.c2f_2 = C2f(True, 3, 128, 128)
+
         self.conv_3 = Conv(128, 256, 3, 2,
-                           padding=auto_padding(kernel_size=3, pad=None)),
-        self.c2f_4 = C2f(True, 6, 256, 256),
+                           padding=auto_padding(kernel_size=3, pad=None))
+
+        self.c2f_4 = C2f(True, 6, 256, 256)
+
         self.conv_5 = Conv(256, 512, 3, 2,
-                           padding=auto_padding(kernel_size=3, pad=None)),
-        self.c2f_6 = C2f(True, 6, 512, 512),
+                           padding=auto_padding(kernel_size=3, pad=None))
+
+        self.c2f_6 = C2f(True, 6, 512, 512)
+
         self.conv_7 = Conv(512, 512, 3, 2,
-                           padding=auto_padding(kernel_size=3, pad=None)),
-        self.c2f_8 = C2f(True, 3, 512, 512),
+                           padding=auto_padding(kernel_size=3, pad=None))
+
+        self.c2f_8 = C2f(True, 3, 512, 512)
+
         self.sppf_9 = SPPF(512, 512)
 
         # head
         self.upsample = nn.Upsample(2)
+
         self.c2f_12 = C2f(False, 3, 1024, 512)
+
         self.c2f_15 = C2f(False, 3, 512, 512)
+
         self.conv_16 = Conv(256, 256, 3, 2,
                             padding=auto_padding(3, None))
+
         self.c2f_18 = C2f(False, 3, 512, 512)
+
         self.conv_19 = Conv(512, 512, 3, 2,
                             padding=auto_padding(3, None))
+
         self.c2f_21 = C2f(False, 3, 1024, 512)
 
-    @staticmethod
-    def detector(feat):
-        ch = feat[:]
-        Bbox = nn.ModuleList(
-            nn.Sequential()
-        )
     def forward(self, x):
         # backbone
         p1 = self.conv_0(x)
@@ -175,7 +187,52 @@ class YOLOv8l(nn.Module):
         return x15, x18, x21
 
 
-if __name__ == "__main__":
+def feature_visualization(x, module_type, stage, n=64, save_dir=Path('../runs')):
+    """
+    x:              Features to be visualized
+    module_type:    Module type
+    stage:          Module stage within model
+    n:              Maximum number of feature maps to plot
+    save_dir:       Directory to save results
+    """
+    if 'Detect' not in module_type:
+        batch, channels, height, width = x.shape  # batch, channels, height, width
+        if height > 1 and width > 1:
+            f = save_dir / f"stage{stage}_{module_type.split('.')[-1]}_features.png"  # filename
 
+            blocks = torch.chunk(x[0].cpu(), channels, dim=0)  # select batch index 0, block by channels
+            n = min(n, channels)  # number of plots
+            fig, ax = plt.subplots(math.ceil(n / 8), 8, tight_layout=True)  # 8 rows x n/8 cols
+            ax = ax.ravel()
+            plt.subplots_adjust(wspace=0.05, hspace=0.05)
+            for i in range(n):
+                ax[i].imshow(blocks[i].squeeze())  # cmap='gray'
+                ax[i].axis('off')
+
+            # LOGGER.info(f'Saving {f}... ({n}/{channels})')
+            plt.savefig(f, dpi=300, bbox_inches='tight')
+            plt.close()
+            np.save(str(f.with_suffix('.npy')), x[0].cpu().numpy())  # npy save
+
+
+if __name__ == '__main__':
+    image_path = "/home/youtian/Pictures/Screenshots/bird.png"
     net = YOLOv8l()
-    print(net)
+    net.to("cuda:0")
+    net.eval()
+    transform = transforms.Compose([transforms.Resize((640, 640)),
+                                    transforms.ToTensor()
+    ])
+    # image = Image.open(image_path)
+    image = cv2.imread(image_path)
+    image = Image.fromarray(image)
+    image = transform(image)
+
+    batch_input = image.unsqueeze(0).to("cuda:0")
+
+    with torch.no_grad():
+        out = net(batch_input)
+    print(out)
+    feature_visualization(out, "nn.Conv2d, nn.Conv2d, nn.Conv2d", 5)
+    # summary(net, input_size=(3, 224, 224))
+

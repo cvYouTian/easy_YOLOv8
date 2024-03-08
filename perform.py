@@ -3,9 +3,7 @@ import time
 import sys
 import os
 import xml.etree.ElementTree as ET
-
 import numpy as np
-
 from ultralytics.utils.downloads import download
 from pathlib import Path
 from typing import Union
@@ -15,8 +13,6 @@ import time
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from ultralytics import YOLO
-import pandas as pd
-
 
 def train():
     # Load a model
@@ -48,8 +44,8 @@ def onnx(path: Union[str, Path] = "/home/youtian/Documents/pro/pyCode/easy_YOLOv
 
 
 def test_img():
-    model = YOLO("/home/you/Desktop/YOLOv8/easy_YOLOv8/runs/detect/m6/weights/best.pt")
-    img = cv2.imread("/home/you/Desktop/YOLOv8/easy_YOLOv8/7.jpg")
+    model = YOLO("/home/youtian/Documents/pro/pyCode/easy_YOLOv8/runs/detect/YOLOv8l/weights/best.pt")
+    img = cv2.imread("/home/youtian/Documents/pro/pyCode/easy_YOLOv8/bus.jpg")
     res = model(img)
     ann = res[0].plot()
     while True:
@@ -101,6 +97,7 @@ def test_folders(model_path: str = "/home/youtian/Documents/pro/pyCode/easy_YOLO
         res = model(cv2.imread(str(img_path)))
         end_timer = time.time()
         timer += end_timer - start_timer
+
         # img = res[0].plot()
         # 把测试的图片提前resize成相同的size
         # ann = cv2.resize(img, (640, 640))
@@ -108,6 +105,7 @@ def test_folders(model_path: str = "/home/youtian/Documents/pro/pyCode/easy_YOLO
 
     # 计算每一张的推理时间
     print("test time : %f" % (timer / len(list(src.iterdir()))))
+
 
 def tracker():
     pa = "/home/you/Downloads/l.mp4"
@@ -156,7 +154,7 @@ def tracker():
     # #     tracker="botsort.yaml",  # or 'bytetrack.yaml'
     # #     show=True,
     # # )
-    #
+
     # for result in model.track(source="vid.mp4"):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
     #     print(
     #         result.boxes.id.cpu().numpy().astype(int)
@@ -234,69 +232,13 @@ def predict():
     print(metrics.box.maps)  # 包含每个类别的map50-95列表
 
 
-def calc_instance(label_path=r"/home/youtian/Documents/pro/pyCode/datasets/HSTS6/labels"):
-    map = {0: "speedboat",
-              1: "motorboat",
-              2: "surfing",
-              3: "airplane",
-              4: "seabird",
-              5: "missile"}
-    counters = {label: 0 for label in map.values()}
-    label_path =Path(label_path) if not isinstance(label_path, Path) else label_path
-    l = label_path.rglob("*.txt")
-    for idx, i in tqdm(enumerate(l)):
-        with open(i, "r") as file:
-            instances = [int(line.strip()[0]) for line in file.readlines()]
-            for instance in instances:
-                counters[map[instance]] += 1
-    print(counters)
-
-def loss_compara_pic(path:Union[Path, str]):
-    """
-        easy_YOLOv8
-            loss_csv
-                xxxresult.csv
-                ...csv
-            ...
-            ...
-            perform.py
-
-    """
-    pa = path if isinstance(path, Path) else Path(path)
-
-    FasterYOLOv8l = pd.read_csv(pa / Path("faster_yolov8l.csv"))
-    YOLOv8l = pd.read_csv(pa / Path("yolov8l.csv"))
-    YOLOv8m = pd.read_csv(pa / Path("yolov8m.csv"))
-    YOLOv5l = pd.read_csv(pa / Path("yolov5l.csv"))
-    YOLOv7 = pd.read_csv(pa / Path("yolov7.csv"))
-    column = "         train/dfl_loss"
-    column_data1 = FasterYOLOv8l[column][0:100]
-    column_data2 = YOLOv8l[column][0:100]
-    column_data3 = YOLOv8m[column][0:100]
-    column_data4 = YOLOv5l[column][0:100]
-    column_data5 = YOLOv7[column][0:100]
-    plt.plot(column_data1, label="FasterYOLOv8l", color="blue")
-    plt.plot(column_data2, label="YOLOv8l", color="red")
-    plt.plot(column_data3, label="YOLOv8m", color="green")
-    plt.plot(column_data4, label="YOLOv5l", color="orange")
-    plt.plot(column_data5, label="YOLOv7", color="purple")
-    plt.title("Loss comparison")
-    plt.xlabel("epoch")
-    plt.ylabel("loss")
-    plt.ylim(1.0, 2.0)
-    plt.xlim(0, 100)
-
-    plt.legend()
-    plt.show()
-
-
 if __name__ == "__main__":
     # loss_compara_pic("./loss_csv")
     # calc_instance()
-    train()
+    # train()
     # test_video()
     # test_folders()
-    # test_img()
+    test_img()
     # tracker()
     # onnx()
     # predict()
