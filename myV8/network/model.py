@@ -1,4 +1,5 @@
 import torch
+from torchsummary import summary
 import cv2
 from PIL import Image
 from torch import nn
@@ -37,19 +38,21 @@ class Conv(nn.Module):
 
 
 class SPPF(nn.Module):
+    """这里的sppf结构作者使用了中间的隐藏层
+
+    """
     def __init__(self, in_channel=512, out_channel=512):
         super(SPPF, self).__init__()
-        self.conv = Conv(in_channel, out_channel, (1, 1), 1, padding=auto_padding(1, None))
-        self.maxpooling = nn.MaxPool2d(kernel_size=5, stride=1, padding=auto_padding(5, None))
+        c_ = in_channel // 2
+        self.cv1 = Conv(in_channel, c_, 1, 1, padding=auto_padding(1, None))
+        self.cv2 = Conv(c_ * 4, out_channel, 1, 1, padding=auto_padding(1, None))
+        self.m = nn.MaxPool2d(5, 1, padding=auto_padding(5, None))
 
     def forward(self, x):
-        x0 = self.conv(x)
-        x1 = self.maxpooling(x0)
-        x2 = self.maxpooling(x1)
-        x3 = self.maxpooling(x2)
-        x4 = torch.cat((x0, x1, x2, x3), 1)
-        out = self.conv(x4)
-        return out
+        x0 = self.cv1(x)
+        x1 = self.m(x0)
+        x2 = self.m(x1)
+        return self.cv2(torch.cat((x0, x1, x2, self.m(x2)), 1))
 
 
 class Bottleneck(nn.Module):
@@ -61,22 +64,22 @@ class Bottleneck(nn.Module):
         super(Bottleneck, self).__init__()
         self.shortcut = shortcut
         self.conv1 = Conv(input_chanel=in_channel,
-                          output_chanel=int(out_channel * 0.5),
+                          output_chanel=out_channel // 2,
                           kernel_size=kernel_size,
                           stride=1,
-                          padding=auto_padding(kernel_size=kernel_size))
+                          padding=auto_padding(kernel_size, None))
 
-        self.conv2 = Conv(input_chanel=int(out_channel * 0.5),
+        self.conv2 = Conv(input_chanel=out_channel // 2,
                           output_chanel=out_channel,
                           kernel_size=kernel_size,
                           stride=1,
-                          padding=auto_padding(kernel_size=kernel_size, pad=None))
+                          padding=auto_padding(kernel_size, None))
 
     def forward(self, x):
         if self.shortcut:
             x0 = self.conv1(x)
             x1 = self.conv2(x0)
-            logits = x0 + x1
+            logits = x + x1
         else:
             x0 = self.conv1(x)
             logits = self.conv2(x0)
@@ -94,15 +97,16 @@ class C2f(nn.Module):
                           output_chanel=out_channel,
                           kernel_size=1,
                           stride=1,
-                          padding=auto_padding(kernel_size=1, pad=None))
+                          padding=auto_padding(1, None))
 
-        self.conv2 = Conv(input_chanel=int(out_channel * 0.5 * 3),
+        self.conv2 = Conv(input_chanel=out_channel // 2 * (block+2),
                           output_chanel=out_channel,
                           kernel_size=1,
                           stride=1,
-                          padding=auto_padding(kernel_size=1, pad=None))
+                          padding=auto_padding(1, None))
+
         self.bottleneck = nn.ModuleList(
-            [Bottleneck(int(out_channel * 0.5), int(out_channel * 0.5), shortcut) for _ in range(block)])
+            [Bottleneck(out_channel // 2, out_channel // 2, shortcut) for _ in range(block)])
 
     def forward(self, x):
         module = list(self.conv1(x).chunk(2, 1))
@@ -141,7 +145,7 @@ class YOLOv8l(nn.Module):
         self.sppf_9 = SPPF(512, 512)
 
         # head
-        self.upsample = nn.Upsample(2)
+        self.upsample = nn.Upsample(None, 2, "nearest")
 
         self.c2f_12 = C2f(False, 3, 1024, 512)
 
@@ -158,6 +162,7 @@ class YOLOv8l(nn.Module):
         self.c2f_21 = C2f(False, 3, 1024, 512)
 
     def forward(self, x):
+
         # backbone
         p1 = self.conv_0(x)
         p2 = self.conv_1(p1)
@@ -169,6 +174,7 @@ class YOLOv8l(nn.Module):
         p5 = self.conv_7(x6)
         x8 = self.c2f_8(p5)
         sppf = self.sppf_9(x8)
+
         # neck
         x10 = self.upsample(sppf)
         x11 = torch.cat((x6, x10), 1)
@@ -221,8 +227,8 @@ if __name__ == '__main__':
     net.to("cuda:0")
     net.eval()
     transform = transforms.Compose([transforms.Resize((640, 640)),
-                                    transforms.ToTensor()
-    ])
+                                    transforms.ToTensor()])
+
     # image = Image.open(image_path)
     image = cv2.imread(image_path)
     image = Image.fromarray(image)
@@ -232,7 +238,8 @@ if __name__ == '__main__':
 
     with torch.no_grad():
         out = net(batch_input)
+
     print(out)
     feature_visualization(out, "nn.Conv2d, nn.Conv2d, nn.Conv2d", 5)
-    # summary(net, input_size=(3, 224, 224))
+    summary(net, input_size=(3, 640, 640))
 

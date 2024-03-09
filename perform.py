@@ -7,10 +7,12 @@ import numpy as np
 from ultralytics.utils.downloads import download
 from pathlib import Path
 from typing import Union
+import torch
 import cv2
 import netron
 import time
 from tqdm import tqdm
+from torchvision import transforms
 import matplotlib.pyplot as plt
 from ultralytics import YOLO
 
@@ -233,13 +235,13 @@ def predict():
 
 
 if __name__ == "__main__":
+    ...
     # loss_compara_pic("./loss_csv")
     # calc_instance()
     # train()
     # test_video()
     # test_folders()
-    test_img()
+    # test_img()
     # tracker()
     # onnx()
     # predict()
-
