@@ -41,6 +41,7 @@ class SPPF(nn.Module):
     """这里的sppf结构作者使用了中间的隐藏层
 
     """
+
     def __init__(self, in_channel=512, out_channel=512):
         super(SPPF, self).__init__()
         c_ = in_channel // 2
@@ -99,7 +100,7 @@ class C2f(nn.Module):
                           stride=1,
                           padding=auto_padding(1, None))
 
-        self.conv2 = Conv(input_chanel=out_channel // 2 * (block+2),
+        self.conv2 = Conv(input_chanel=out_channel // 2 * (block + 2),
                           output_chanel=out_channel,
                           kernel_size=1,
                           stride=1,
@@ -115,9 +116,33 @@ class C2f(nn.Module):
         return x
 
 
+class Detect(nn.Module):
+
+    def __init__(self, in_chanel, nc, reg_max):
+        super().__init__()
+        self.in_chanel = in_chanel
+
+        self.bbox = nn.Sequential(Conv(in_chanel, 64, 3, 1, 1),
+                                  Conv(64, 64, 3, 1, 1),
+                                  Conv(64, reg_max * 4, 1, 1, 0))
+
+        self.cls = nn.Sequential(Conv(in_chanel, 256, 3, 1, 1),
+                                 Conv(256, 256, 3, 1, 1),
+                                 Conv(256, nc, 1, 1, 0))
+
+    def forward(self, x):
+        bbox = self.bbox(x)
+        cls = self.cls(x)
+
+        return torch.cat((bbox, cls), 1)
+
+
 class YOLOv8l(nn.Module):
-    def __init__(self):
+    def __init__(self, nc, reg_max):
         super(YOLOv8l, self).__init__()
+        self.nc = nc
+        self.reg_max = reg_max
+
         # backbone
         self.conv_0 = Conv(3, 64, 3, 2,
                            padding=auto_padding(3, None))
@@ -128,17 +153,17 @@ class YOLOv8l(nn.Module):
         self.c2f_2 = C2f(True, 3, 128, 128)
 
         self.conv_3 = Conv(128, 256, 3, 2,
-                           padding=auto_padding(kernel_size=3, pad=None))
+                           padding=auto_padding(3, None))
 
         self.c2f_4 = C2f(True, 6, 256, 256)
 
         self.conv_5 = Conv(256, 512, 3, 2,
-                           padding=auto_padding(kernel_size=3, pad=None))
+                           padding=auto_padding(3, None))
 
         self.c2f_6 = C2f(True, 6, 512, 512)
 
         self.conv_7 = Conv(512, 512, 3, 2,
-                           padding=auto_padding(kernel_size=3, pad=None))
+                           padding=auto_padding(3, None))
 
         self.c2f_8 = C2f(True, 3, 512, 512)
 
@@ -149,20 +174,23 @@ class YOLOv8l(nn.Module):
 
         self.c2f_12 = C2f(False, 3, 1024, 512)
 
-        self.c2f_15 = C2f(False, 3, 512, 512)
+        self.c2f_15 = C2f(False, 3, 768, 256)
 
         self.conv_16 = Conv(256, 256, 3, 2,
                             padding=auto_padding(3, None))
 
-        self.c2f_18 = C2f(False, 3, 512, 512)
+        self.c2f_18 = C2f(False, 3, 768, 512)
 
         self.conv_19 = Conv(512, 512, 3, 2,
                             padding=auto_padding(3, None))
 
         self.c2f_21 = C2f(False, 3, 1024, 512)
 
-    def forward(self, x):
+        self.det_low = Detect(256, nc, reg_max)
+        self.det_mid = Detect(512, nc, reg_max)
+        self.det_high = Detect(512, nc, reg_max)
 
+    def forward(self, x):
         # backbone
         p1 = self.conv_0(x)
         p2 = self.conv_1(p1)
@@ -190,40 +218,20 @@ class YOLOv8l(nn.Module):
         x19 = self.conv_19(x18)
         x20 = torch.cat((sppf, x19), 1)
         x21 = self.c2f_21(x20)
-        return x15, x18, x21
 
+        det_low = self.det_low(x15)
+        det_mid = self.det_low(x18)
+        det_high = self.det_low(x21)
 
-def feature_visualization(x, module_type, stage, n=64, save_dir=Path('../runs')):
-    """
-    x:              Features to be visualized
-    module_type:    Module type
-    stage:          Module stage within model
-    n:              Maximum number of feature maps to plot
-    save_dir:       Directory to save results
-    """
-    if 'Detect' not in module_type:
-        batch, channels, height, width = x.shape  # batch, channels, height, width
-        if height > 1 and width > 1:
-            f = save_dir / f"stage{stage}_{module_type.split('.')[-1]}_features.png"  # filename
-
-            blocks = torch.chunk(x[0].cpu(), channels, dim=0)  # select batch index 0, block by channels
-            n = min(n, channels)  # number of plots
-            fig, ax = plt.subplots(math.ceil(n / 8), 8, tight_layout=True)  # 8 rows x n/8 cols
-            ax = ax.ravel()
-            plt.subplots_adjust(wspace=0.05, hspace=0.05)
-            for i in range(n):
-                ax[i].imshow(blocks[i].squeeze())  # cmap='gray'
-                ax[i].axis('off')
-
-            # LOGGER.info(f'Saving {f}... ({n}/{channels})')
-            plt.savefig(f, dpi=300, bbox_inches='tight')
-            plt.close()
-            np.save(str(f.with_suffix('.npy')), x[0].cpu().numpy())  # npy save
+        return torch.cat([det_low.view(1, self.nc * 4 * self.reg_max, -1),
+                          det_mid.view(1, self.nc * 4 * self.reg_max, -1),
+                          det_high.view(1, self.nc * 4 * self.reg_max, -1)],
+                         2)
 
 
 if __name__ == '__main__':
     image_path = "/home/youtian/Pictures/Screenshots/bird.png"
-    net = YOLOv8l()
+    net = YOLOv8l(80, 16)
     net.to("cuda:0")
     net.eval()
     transform = transforms.Compose([transforms.Resize((640, 640)),
@@ -240,6 +248,5 @@ if __name__ == '__main__':
         out = net(batch_input)
 
     print(out)
-    feature_visualization(out, "nn.Conv2d, nn.Conv2d, nn.Conv2d", 5)
-    summary(net, input_size=(3, 640, 640))
-
+    # feature_visualization(out, "nn.Conv2d, nn.Conv2d, nn.Conv2d", 5)
+    # summary(net, input_size=(3, 640, 640))

@@ -31,8 +31,8 @@ def train():
     model.train(data="VOC.yaml", epochs=5, imgsz=640)
 
 
-def onnx(path: Union[str, Path] = "/home/youtian/Documents/pro/pyCode/easy_YOLOv8/runs/detect/FasterYOLOv8.pt", ):
-    # you need install numpy==1.24.3 ,otherwise it will report Error
+def onnx(path: Union[str, Path] = "/home/youtian/Documents/pro/pyCode/easy_YOLOv8/runs/yolov8l.pt" ):
+    # you need numpy==1.24.3 ,otherwise it will report Error
     onnxpath = Path(path).with_suffix(".onnx")
     print(onnxpath)
     if not onnxpath.exists():
@@ -235,10 +235,9 @@ def predict():
 
 
 if __name__ == "__main__":
-    ...
     # loss_compara_pic("./loss_csv")
     # calc_instance()
-    # train()
+    train()
     # test_video()
     # test_folders()
     # test_img()

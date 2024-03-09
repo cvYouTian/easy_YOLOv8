@@ -68,7 +68,9 @@ class Detect(nn.Module):
             self.shape = shape
         # [1, 80+reg*4, -1]
         # [1, 70, 1280] ——> yolov8n
+        # 将三个输出头融在一起
         x_cat = torch.cat([xi.view(shape[0], self.no, -1) for xi in x], 2)
+
         if self.export and self.format in ('saved_model', 'pb', 'tflite', 'edgetpu', 'tfjs'):  # avoid TF FlexSplitV ops
             box = x_cat[:, :self.reg_max * 4]
             cls = x_cat[:, self.reg_max * 4:]

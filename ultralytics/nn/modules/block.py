@@ -418,6 +418,7 @@ class SC_PW_PW_C2f(C2f):
         self.m = nn.ModuleList(SC_PW_PW_Bottleneck(self.c, self.c, shortcut, g, k=((3, 3), (3, 3)),
                                                e=1.0) for _ in range(n))
 
+
 class C3(nn.Module):
     """CSP Bottleneck with 3 convolutions."""
 
