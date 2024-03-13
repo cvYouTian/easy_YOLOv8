@@ -190,6 +190,9 @@ class YOLOv8l(nn.Module):
         self.det_mid = Detect(512, nc, reg_max)
         self.det_high = Detect(512, nc, reg_max)
 
+        # loss
+        self.dfl = DFL(self.reg_max) if
+
     def forward(self, x):
         # backbone
         p1 = self.conv_0(x)
@@ -217,17 +220,28 @@ class YOLOv8l(nn.Module):
 
         x19 = self.conv_19(x18)
         x20 = torch.cat((sppf, x19), 1)
+
         x21 = self.c2f_21(x20)
 
+        # [1, 64+80, 80, 80]
         det_low = self.det_low(x15)
-        det_mid = self.det_low(x18)
-        det_high = self.det_low(x21)
+        # [1, 64+80, 40, 40]
+        det_mid = self.det_mid(x18)
+        # [1, 64+80, 20, 20]
+        det_high = self.det_high(x21)
 
-        return torch.cat([det_low.view(1, self.nc * 4 * self.reg_max, -1),
-                          det_mid.view(1, self.nc * 4 * self.reg_max, -1),
-                          det_high.view(1, self.nc * 4 * self.reg_max, -1)],
+        # [1, 80 + 64 , 8400], 其中8400包含了3个头的像素点
+        det_cat = torch.cat([det_low.view(1, self.nc + self.reg_max * 4, -1),
+                          det_mid.view(1, self.nc + self.reg_max * 4, -1),
+                          det_high.view(1, self.nc + self.reg_max * 4, -1)],
                          2)
 
+        box, cls = det_cat.split((self.reg_max*4, self.nc), 1)
+
+        dbox = dist2bbox(self.dfl(box), self.anchors.unsqueeze(0), xywh=True, dim=1) * self.strides
+
+
+        return
 
 if __name__ == '__main__':
     image_path = "/home/youtian/Pictures/Screenshots/bird.png"

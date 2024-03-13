@@ -140,6 +140,7 @@ class resblock(nn.Module):
         return x
 
 
+# RFB_block
 class RFBblock(nn.Module):
     def __init__(self, in_ch, residual=False):
         super(RFBblock, self).__init__()
@@ -379,6 +380,7 @@ def add_sepconv(in_ch, out_ch, ksize, stride):
     return stage
 
 
+# 转置残差网络
 class InvertedResidual(nn.Module):
     def __init__(self, inp, oup, stride, expand_ratio):
         super(InvertedResidual, self).__init__()
