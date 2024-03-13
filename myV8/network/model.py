@@ -124,17 +124,42 @@ class Detect(nn.Module):
 
         self.bbox = nn.Sequential(Conv(in_chanel, 64, 3, 1, 1),
                                   Conv(64, 64, 3, 1, 1),
-                                  Conv(64, reg_max * 4, 1, 1, 0))
+                                  nn.Conv2d(64, reg_max * 4, 1, 1, 0))
 
         self.cls = nn.Sequential(Conv(in_chanel, 256, 3, 1, 1),
                                  Conv(256, 256, 3, 1, 1),
-                                 Conv(256, nc, 1, 1, 0))
+                                 nn.Conv2d(256, nc, 1, 1, 0))
+
+
+    @staticmethod
+    def make_anchors(feat_list, stride, grid_cell_offset=0.5):
+        """从特征中生成anchors"""
+
 
     def forward(self, x):
-        bbox = self.bbox(x)
-        cls = self.cls(x)
+        # x: [feat80, feat40, feat20]
 
-        return torch.cat((bbox, cls), 1)
+        bbox_80 = self.bbox(x[0])
+        cls_80 = self.cls(x[0])
+        # [1, 64 + 80, 80, 80]
+        low_feat = torch.cat((bbox_80, cls_80), 1)
+
+        bbox_40 = self.bbox(x[1])
+        cls_40 = self.cls(x[1])
+        # [1, 64 + 80, 40, 40]
+        mid_feat = torch.cat((bbox_40, cls_40), 1)
+
+        bbox_20 = self.bbox(x[2])
+        cls_20 = self.cls(x[2])
+        # [1, 64 + 80, 20, 20]
+        high_feat = torch.cat((bbox_20, cls_20), 1)
+
+        x = [low_feat, mid_feat, high_feat]
+
+        if self.training:
+            return x
+
+        self.anchors, self.strides = (x)
 
 
 class YOLOv8l(nn.Module):
@@ -190,8 +215,6 @@ class YOLOv8l(nn.Module):
         self.det_mid = Detect(512, nc, reg_max)
         self.det_high = Detect(512, nc, reg_max)
 
-        # loss
-        self.dfl = DFL(self.reg_max) if
 
     def forward(self, x):
         # backbone
@@ -223,25 +246,9 @@ class YOLOv8l(nn.Module):
 
         x21 = self.c2f_21(x20)
 
-        # [1, 64+80, 80, 80]
-        det_low = self.det_low(x15)
-        # [1, 64+80, 40, 40]
-        det_mid = self.det_mid(x18)
-        # [1, 64+80, 20, 20]
-        det_high = self.det_high(x21)
 
-        # [1, 80 + 64 , 8400], 其中8400包含了3个头的像素点
-        det_cat = torch.cat([det_low.view(1, self.nc + self.reg_max * 4, -1),
-                          det_mid.view(1, self.nc + self.reg_max * 4, -1),
-                          det_high.view(1, self.nc + self.reg_max * 4, -1)],
-                         2)
+        return [x15, x18, x21]
 
-        box, cls = det_cat.split((self.reg_max*4, self.nc), 1)
-
-        dbox = dist2bbox(self.dfl(box), self.anchors.unsqueeze(0), xywh=True, dim=1) * self.strides
-
-
-        return
 
 if __name__ == '__main__':
     image_path = "/home/youtian/Pictures/Screenshots/bird.png"
