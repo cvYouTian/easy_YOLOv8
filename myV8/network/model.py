@@ -139,20 +139,20 @@ class Detect(nn.Module):
     def forward(self, x):
         # x: [feat80, feat40, feat20]
 
-        bbox_80 = self.bbox(x[0])
-        cls_80 = self.cls(x[0])
+        bbox_low = self.bbox(x[0])
+        cls_low = self.cls(x[0])
         # [1, 64 + 80, 80, 80]
-        low_feat = torch.cat((bbox_80, cls_80), 1)
+        low_feat = torch.cat((bbox_low, cls_low), 1)
 
-        bbox_40 = self.bbox(x[1])
-        cls_40 = self.cls(x[1])
+        bbox_mid = self.bbox(x[1])
+        cls_mid = self.cls(x[1])
         # [1, 64 + 80, 40, 40]
-        mid_feat = torch.cat((bbox_40, cls_40), 1)
+        mid_feat = torch.cat((bbox_mid, cls_mid), 1)
 
-        bbox_20 = self.bbox(x[2])
-        cls_20 = self.cls(x[2])
+        bbox_high = self.bbox(x[2])
+        cls_high = self.cls(x[2])
         # [1, 64 + 80, 20, 20]
-        high_feat = torch.cat((bbox_20, cls_20), 1)
+        high_feat = torch.cat((bbox_high, cls_high), 1)
 
         x = [low_feat, mid_feat, high_feat]
 
