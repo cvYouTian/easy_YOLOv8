@@ -6,6 +6,7 @@ from torch import nn
 import torch.nn.functional as F
 from typing import Union
 import numpy as np
+from loss import DFL
 from torchvision import transforms
 import matplotlib.pyplot as plt
 import math
@@ -117,18 +118,24 @@ class C2f(nn.Module):
 
 
 class Detect(nn.Module):
+    strides = torch.empty(0)
 
     def __init__(self, in_chanel, nc, reg_max):
         super().__init__()
+        # 分类的数量 + 定位信息的数量
+        self.nc = nc
+        self.reg_max = reg_max
+        self.no = nc + self.reg_max * 4
         self.in_chanel = in_chanel
+        self.dfl = DFL
 
         self.bbox = nn.Sequential(Conv(in_chanel, 64, 3, 1, 1),
                                   Conv(64, 64, 3, 1, 1),
-                                  nn.Conv2d(64, reg_max * 4, 1, 1, 0))
+                                  nn.Conv2d(64, self.reg_max * 4, 1, 1, 0))
 
         self.cls = nn.Sequential(Conv(in_chanel, 256, 3, 1, 1),
                                  Conv(256, 256, 3, 1, 1),
-                                 nn.Conv2d(256, nc, 1, 1, 0))
+                                 nn.Conv2d(256, self.nc, 1, 1, 0))
 
     @staticmethod
     def make_anchors(feat_list, strides, grid_cell_offset=0.5):
@@ -149,12 +156,26 @@ class Detect(nn.Module):
             anchor_points.append(torch.stack((sx, sy), -1).view(-1, 2))
             # [6400, 1] 6400个采样率
             stride_tensor.append(torch.full((h*w, 1), stride, dtype=dtype, device=device))
+
         # ([8400, 2], [8400, 1])
         return torch.cat(anchor_points), torch.cat(stride_tensor)
+
+    @staticmethod
+    def dist2bbox(distance, anchor_points, xywh=True, dim=-1):
+        """Transform distance(ltrb) to box(xywh or xyxy)."""
+        lt, rb = distance.chunk(2, dim)
+        x1y1 = anchor_points - lt
+        x2y2 = anchor_points + rb
+        if xywh:
+            c_xy = (x1y1 + x2y2) / 2
+            wh = x2y2 - x1y1
+            return torch.cat((c_xy, wh), dim)  # xywh bbox
+        return torch.cat((x1y1, x2y2), dim)  # xyxy bbox
 
     def forward(self, x):
         # x: [feat80, feat40, feat20]
 
+        shape = x[0].shape
         bbox_low = self.bbox(x[0])
         cls_low = self.cls(x[0])
         # [1, 64 + 80, 80, 80]
@@ -175,7 +196,16 @@ class Detect(nn.Module):
         if self.training:
             return x
 
-        self.anchors, self.strides = (x)
+        # [2, 8400]  [1, 8400]
+        self.anchors, self.strides = (x.transpose(0, 1)
+                                      for x in self.make_anchors(x, self.strides, 0.5))
+        # [1, 80+64, 8400] : 三个尺寸所有的像素点信息
+        x_cat = torch.cat([xi.view(shape[0], self.no, -1) for xi in x], 2)
+
+        # box [1, 64, 8400] cls [1, 80, 8400]
+        box, cls = x_cat.split(split_size=(self.reg_max * 4, self.nc), dim=1)
+
+        dbox = self.dist2bbox(self.dfl(box), self.anchors.unqueeze(0), xywh=True, dim=1) * self.strides
 
 
 class YOLOv8l(nn.Module):
@@ -231,7 +261,6 @@ class YOLOv8l(nn.Module):
         self.det_mid = Detect(512, nc, reg_max)
         self.det_high = Detect(512, nc, reg_max)
 
-
     def forward(self, x):
         # backbone
         p1 = self.conv_0(x)
@@ -261,7 +290,6 @@ class YOLOv8l(nn.Module):
         x20 = torch.cat((sppf, x19), 1)
 
         x21 = self.c2f_21(x20)
-
 
         return [x15, x18, x21]
 

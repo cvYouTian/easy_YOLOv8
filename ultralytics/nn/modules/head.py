@@ -52,8 +52,8 @@ class Detect(nn.Module):
 
         Args：
             x[list]：[feat80, feat40, feat20]
-
         """
+
         # achieve picture's shape
         shape = x[0].shape  # BCHW
         # 将两种不同的尺寸的featuremap的chanel打成相同的
