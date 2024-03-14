@@ -130,11 +130,27 @@ class Detect(nn.Module):
                                  Conv(256, 256, 3, 1, 1),
                                  nn.Conv2d(256, nc, 1, 1, 0))
 
-
     @staticmethod
-    def make_anchors(feat_list, stride, grid_cell_offset=0.5):
+    def make_anchors(feat_list, strides, grid_cell_offset=0.5):
         """从特征中生成anchors"""
+        # 储存列表
+        anchor_points, stride_tensor = [], []
+        assert feat_list is not None, "your feat_list is None"
+        dtype, device = feat_list[0].dtype, feat_list[0].device
 
+        for i, stride in enumerate(strides):
+            _, _, h, w = feat_list[i].shape
+            sx = torch.arange(end=w, dtype=dtype, device=device) + grid_cell_offset
+            sy = torch.arange(end=h, dtype=dtype, device=device) + grid_cell_offset
+            # pytorch >= 1.1.0
+            # [80，]->[80, 80]
+            sy, sx = torch.meshgrid(sy, sx, indexing="ij")
+            # [80, 80]->[80, 80, 2]->[6400, 2] 6400个anchor点
+            anchor_points.append(torch.stack((sx, sy), -1).view(-1, 2))
+            # [6400, 1] 6400个采样率
+            stride_tensor.append(torch.full((h*w, 1), stride, dtype=dtype, device=device))
+        # ([8400, 2], [8400, 1])
+        return torch.cat(anchor_points), torch.cat(stride_tensor)
 
     def forward(self, x):
         # x: [feat80, feat40, feat20]
