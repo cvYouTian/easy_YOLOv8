@@ -31,7 +31,8 @@ class DFL(nn.Module):
     def forward(self, x):
         # [1, 64, 8400]
         b, c, a = x.shape
+        x = x.view(b, 4, self.c1, a)
 
-        # 将其拆成4各坐标点和reg_max的数量
+        # 将其拆成4个坐标点和reg_max的数量
         return self.conv(x.view(b, 4, self.c1, a).transpose(2, 1).softmax(1)).view(b, 4, a)
 

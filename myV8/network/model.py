@@ -125,10 +125,11 @@ class Detect(nn.Module):
         # 分类的数量 + 定位信息的数量
         self.nc = nc
         self.reg_max = reg_max
+        # self.no 不包含位置关系只是一个纯数字
         self.no = nc + self.reg_max * 4
         self.in_chanel = in_chanel
         self.dfl = DFL
-
+        #
         self.bbox = nn.Sequential(Conv(in_chanel, 64, 3, 1, 1),
                                   Conv(64, 64, 3, 1, 1),
                                   nn.Conv2d(64, self.reg_max * 4, 1, 1, 0))
@@ -203,9 +204,11 @@ class Detect(nn.Module):
         x_cat = torch.cat([xi.view(shape[0], self.no, -1) for xi in x], 2)
 
         # box [1, 64, 8400] cls [1, 80, 8400]
+        # 拆分时包含位置关系， 即定位信息在前， 分类信息在后
         box, cls = x_cat.split(split_size=(self.reg_max * 4, self.nc), dim=1)
 
         dbox = self.dist2bbox(self.dfl(box), self.anchors.unqueeze(0), xywh=True, dim=1) * self.strides
+        y = torch.cat((dbox, cls.sigm))
 
 
 class YOLOv8l(nn.Module):
