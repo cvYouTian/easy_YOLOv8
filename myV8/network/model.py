@@ -4,13 +4,15 @@ import cv2
 from PIL import Image
 from torch import nn
 import torch.nn.functional as F
-from typing import Union
+from typing import Union, Type
 import numpy as np
 from loss import DFL
 from torchvision import transforms
 import matplotlib.pyplot as plt
 import math
 from pathlib import Path
+
+from myV8.network.loss import DFL
 
 
 def auto_padding(kernel_size, pad=None):
@@ -118,7 +120,9 @@ class C2f(nn.Module):
 
 
 class Detect(nn.Module):
+    
     strides = torch.empty(0)
+    anchors = torch.empty(0)
 
     def __init__(self, in_chanel, nc, reg_max):
         super().__init__()
@@ -126,10 +130,10 @@ class Detect(nn.Module):
         self.nc = nc
         self.reg_max = reg_max
         # self.no 不包含位置关系只是一个纯数字
-        self.no = nc + self.reg_max * 4
+        self.no = self.reg_max * 4 + nc 
         self.in_chanel = in_chanel
         self.dfl = DFL
-        #
+        # 定位中也不包含位置信息
         self.bbox = nn.Sequential(Conv(in_chanel, 64, 3, 1, 1),
                                   Conv(64, 64, 3, 1, 1),
                                   nn.Conv2d(64, self.reg_max * 4, 1, 1, 0))
@@ -138,9 +142,57 @@ class Detect(nn.Module):
                                  Conv(256, 256, 3, 1, 1),
                                  nn.Conv2d(256, self.nc, 1, 1, 0))
 
+    def forward(self, x):
+        # x: [feat80, feat40, feat20]
+
+        shape = x[0].shape
+        bbox_low = self.bbox(x[0])
+        cls_low = self.cls(x[0])
+        # [1, 64 + 80, 80, 80]
+        # 组合时定位在前， 分类通道在后
+        low_feat = torch.cat((bbox_low, cls_low), 1)
+
+        bbox_mid = self.bbox(x[1])
+        cls_mid = self.cls(x[1])
+        # [1, 64 + 80, 40, 40]
+        mid_feat = torch.cat((bbox_mid, cls_mid), 1)
+
+        bbox_high = self.bbox(x[2])
+        cls_high = self.cls(x[2])
+        # [1, 64 + 80, 20, 20]
+        high_feat = torch.cat((bbox_high, cls_high), 1)
+
+        x = [low_feat, mid_feat, high_feat]
+
+        if self.training:
+            return x
+
+        # 如果不是训练还需要下面的操作
+
+        # [2, 8400]  [1, 8400]
+        self.anchors, self.strides = (x.transpose(0, 1)
+                                      for x in self.make_anchors(x, self.strides, 0.5))
+        # [1, 80+64, 8400] : 三个尺寸所有的像素点信息, 即每个像素点都要预测出80个类别信息和16组的坐标信息
+        x_cat = torch.cat([xi.view(shape[0], self.no, -1) for xi in x], 2)
+
+        # box [1, 64, 8400] cls [1, 80, 8400]
+        # 拆分时和153行的位置信息对应，即定位信息在前， 分类信息在后
+        box, cls = x_cat.split(split_size=(self.reg_max * 4, self.nc), dim=1)
+        # dfl:[1, 4, 8400], anchors: [1, 2, 8400] -> [1, 4, 8400] 最后的bbox坐标
+        dbox = self.dist2bbox(self.dfl(box), self.anchors.unqueeze(0), xywh=True, dim=1) * self.strides
+        # cls这里使用的是sigmiod函数，做了一下归一化 -> [1, 84, 8400]
+        y = torch.cat((dbox, cls.sigmiod()), 1)
+
+        return y, x
+
     @staticmethod
     def make_anchors(feat_list, strides, grid_cell_offset=0.5):
-        """从特征中生成anchors"""
+        """从特征中生成anchors
+
+            Args:
+                grid_cell_offset: 这里使用的是0.5就意味着使用的是中心点坐标, 使用的是FCOS的坐标计算的方法
+
+        """
         # 储存列表
         anchor_points, stride_tensor = [], []
         assert feat_list is not None, "your feat_list is None"
@@ -164,51 +216,18 @@ class Detect(nn.Module):
     @staticmethod
     def dist2bbox(distance, anchor_points, xywh=True, dim=-1):
         """Transform distance(ltrb) to box(xywh or xyxy)."""
+        # [1, 4, 8400]->[1, 2, 8400],[1, 2, 8400]
         lt, rb = distance.chunk(2, dim)
+        # 左上角的坐标
         x1y1 = anchor_points - lt
+        # 右下角的坐标
         x2y2 = anchor_points + rb
         if xywh:
             c_xy = (x1y1 + x2y2) / 2
             wh = x2y2 - x1y1
             return torch.cat((c_xy, wh), dim)  # xywh bbox
+
         return torch.cat((x1y1, x2y2), dim)  # xyxy bbox
-
-    def forward(self, x):
-        # x: [feat80, feat40, feat20]
-
-        shape = x[0].shape
-        bbox_low = self.bbox(x[0])
-        cls_low = self.cls(x[0])
-        # [1, 64 + 80, 80, 80]
-        low_feat = torch.cat((bbox_low, cls_low), 1)
-
-        bbox_mid = self.bbox(x[1])
-        cls_mid = self.cls(x[1])
-        # [1, 64 + 80, 40, 40]
-        mid_feat = torch.cat((bbox_mid, cls_mid), 1)
-
-        bbox_high = self.bbox(x[2])
-        cls_high = self.cls(x[2])
-        # [1, 64 + 80, 20, 20]
-        high_feat = torch.cat((bbox_high, cls_high), 1)
-
-        x = [low_feat, mid_feat, high_feat]
-
-        if self.training:
-            return x
-
-        # [2, 8400]  [1, 8400]
-        self.anchors, self.strides = (x.transpose(0, 1)
-                                      for x in self.make_anchors(x, self.strides, 0.5))
-        # [1, 80+64, 8400] : 三个尺寸所有的像素点信息
-        x_cat = torch.cat([xi.view(shape[0], self.no, -1) for xi in x], 2)
-
-        # box [1, 64, 8400] cls [1, 80, 8400]
-        # 拆分时包含位置关系， 即定位信息在前， 分类信息在后
-        box, cls = x_cat.split(split_size=(self.reg_max * 4, self.nc), dim=1)
-
-        dbox = self.dist2bbox(self.dfl(box), self.anchors.unqueeze(0), xywh=True, dim=1) * self.strides
-        y = torch.cat((dbox, cls.sigm))
 
 
 class YOLOv8l(nn.Module):
