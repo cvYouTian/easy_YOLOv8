@@ -41,10 +41,10 @@ class BaseModel(nn.Module):
         Returns:
             (torch.Tensor): The output of the network.
         """
-        # 如果x是包含输入图像的tensor的和gtbox的字典，则选用训练状态
+        # 训练和验证阶段
         if isinstance(x, dict):  # for cases of training and validating while training.
             return self.loss(x, *args, **kwargs)
-        # 如果只是image的tensor，直接预测
+        # 测试阶段
         return self.predict(x, *args, **kwargs)
 
     def predict(self, x, profile=False, visualize=False, augment=False):
@@ -226,6 +226,7 @@ class BaseModel(nn.Module):
         raise NotImplementedError('compute_loss() needs to be implemented by task heads')
 
 
+# yolov8的模型结构
 class DetectionModel(BaseModel):
     """YOLOv8 detection model."""
     # 这里可以添加一个nc参数
@@ -257,7 +258,9 @@ class DetectionModel(BaseModel):
             m.inplace = self.inplace
             # 这里根据m的类型调用父类的forward(x)
             forward = lambda x: self.forward(x)[0] if isinstance(m, (Segment, Pose)) else self.forward(x)
+            # 使用全零的数组测试一下
             tes = forward(torch.zeros(1, ch, s, s))
+
             m.stride = torch.tensor([s / x.shape[-2] for x in forward(torch.zeros(1, ch, s, s))])  # forward
             self.stride = m.stride
             m.bias_init()  # only run once

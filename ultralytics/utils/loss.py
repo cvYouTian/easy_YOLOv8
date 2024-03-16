@@ -105,7 +105,6 @@ class KeypointLoss(nn.Module):
 
 # Criterion class for computing Detection training losses
 class v8DetectionLoss:
-
     def __init__(self, model):  # model must be de-paralleled
         # return cpu/gpu
         device = next(model.parameters()).device  # get model device
