@@ -38,9 +38,9 @@ class DFL(nn.Module):
         # 第一次的定位信息纬度变化， 这里是将坐标信息在前， reg_max信息在后
         x = x.view(b, 4, self.c1, a).transpose(2, 1)
         # 先在16个纬度上实现softmax，再使用单层感知机（16, 1）实现16个只
-        distribute = self.conv(x.softmax(1)).view(b, 4, a)
+
         # [1, 4, 8400]
-        return distribute
+        return self.conv(x.softmax(1)).view(b, 4, a)
 
 
 if __name__ == '__main__':

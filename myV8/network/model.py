@@ -119,26 +119,44 @@ class C2f(nn.Module):
         return x
 
 
+# TODO: Detect中没有使用官网的参数初始化函数
 class Detect(nn.Module):
-    
-    strides = torch.empty(0)
-    anchors = torch.empty(0)
-
-    def __init__(self, in_chanel, nc, reg_max):
+    def __init__(self, nc, reg_max):
         super().__init__()
+
+        self.strides = torch.empty(0)
+        self.anchors = torch.empty(0)
+
         # 分类的数量 + 定位信息的数量
         self.nc = nc
+        # 检测头的数量
+        self.stride = torch.tensor([8, 16, 32], dtype=torch.float32, device="cuda:0")
         self.reg_max = reg_max
         # self.no 不包含位置关系只是一个纯数字
         self.no = self.reg_max * 4 + nc 
-        self.in_chanel = in_chanel
-        self.dfl = DFL
+        self.dfl = DFL(reg_max)
         # 定位中也不包含位置信息
-        self.bbox = nn.Sequential(Conv(in_chanel, 64, 3, 1, 1),
+        self.bbox_low = nn.Sequential(Conv(256, 64, 3, 1, 1),
                                   Conv(64, 64, 3, 1, 1),
                                   nn.Conv2d(64, self.reg_max * 4, 1, 1, 0))
 
-        self.cls = nn.Sequential(Conv(in_chanel, 256, 3, 1, 1),
+        self.cls_low = nn.Sequential(Conv(256, 256, 3, 1, 1),
+                                 Conv(256, 256, 3, 1, 1),
+                                 nn.Conv2d(256, self.nc, 1, 1, 0))
+
+        self.bbox_mid = nn.Sequential(Conv(512, 64, 3, 1, 1),
+                                  Conv(64, 64, 3, 1, 1),
+                                  nn.Conv2d(64, self.reg_max * 4, 1, 1, 0))
+
+        self.cls_mid = nn.Sequential(Conv(512, 256, 3, 1, 1),
+                                 Conv(256, 256, 3, 1, 1),
+                                 nn.Conv2d(256, self.nc, 1, 1, 0))
+
+        self.bbox_high = nn.Sequential(Conv(512, 64, 3, 1, 1),
+                                  Conv(64, 64, 3, 1, 1),
+                                  nn.Conv2d(64, self.reg_max * 4, 1, 1, 0))
+
+        self.cls_high = nn.Sequential(Conv(512, 256, 3, 1, 1),
                                  Conv(256, 256, 3, 1, 1),
                                  nn.Conv2d(256, self.nc, 1, 1, 0))
 
@@ -146,19 +164,19 @@ class Detect(nn.Module):
         # x: [feat80, feat40, feat20]
 
         shape = x[0].shape
-        bbox_low = self.bbox(x[0])
-        cls_low = self.cls(x[0])
+        bbox_low = self.bbox_low(x[0])
+        cls_low = self.cls_low(x[0])
         # [1, 64 + 80, 80, 80]
         # 组合时定位在前， 分类通道在后
         low_feat = torch.cat((bbox_low, cls_low), 1)
 
-        bbox_mid = self.bbox(x[1])
-        cls_mid = self.cls(x[1])
+        bbox_mid = self.bbox_mid(x[1])
+        cls_mid = self.cls_mid(x[1])
         # [1, 64 + 80, 40, 40]
         mid_feat = torch.cat((bbox_mid, cls_mid), 1)
 
-        bbox_high = self.bbox(x[2])
-        cls_high = self.cls(x[2])
+        bbox_high = self.bbox_high(x[2])
+        cls_high = self.cls_high(x[2])
         # [1, 64 + 80, 20, 20]
         high_feat = torch.cat((bbox_high, cls_high), 1)
 
@@ -171,7 +189,7 @@ class Detect(nn.Module):
 
         # [2, 8400]  [1, 8400]
         self.anchors, self.strides = (x.transpose(0, 1)
-                                      for x in self.make_anchors(x, self.strides, 0.5))
+                                      for x in self.make_anchors(x, self.stride, 0.5))
         # [1, 80+64, 8400] : 三个尺寸所有的像素点信息, 即每个像素点都要预测出80个类别信息和16组的坐标信息
         x_cat = torch.cat([xi.view(shape[0], self.no, -1) for xi in x], 2)
 
@@ -179,15 +197,17 @@ class Detect(nn.Module):
         # 拆分时和153行的位置信息对应，即定位信息在前， 分类信息在后
         box, cls = x_cat.split(split_size=(self.reg_max * 4, self.nc), dim=1)
         # dfl:[1, 4, 8400], anchors: [1, 2, 8400] -> [1, 4, 8400] 最后的bbox坐标
-        dbox = self.dist2bbox(self.dfl(box), self.anchors.unqueeze(0), xywh=True, dim=1) * self.strides
+        dbox = self.dist2bbox(self.dfl(box), self.anchors.unsqueeze(0), xywh=True, dim=1) * self.strides
         # cls这里使用的是sigmiod函数，做了一下归一化 -> [1, 84, 8400]
-        y = torch.cat((dbox, cls.sigmiod()), 1)
+        y = torch.cat((dbox, cls.sigmoid()), 1)
 
         return y, x
 
+
+
     @staticmethod
     def make_anchors(feat_list, strides, grid_cell_offset=0.5):
-        """从特征中生成anchors
+        """glenn从特征中生成anchors
 
             Args:
                 grid_cell_offset: 这里使用的是0.5就意味着使用的是中心点坐标, 使用的是FCOS的坐标计算的方法
@@ -215,7 +235,7 @@ class Detect(nn.Module):
 
     @staticmethod
     def dist2bbox(distance, anchor_points, xywh=True, dim=-1):
-        """Transform distance(ltrb) to box(xywh or xyxy)."""
+        """glenn Transform distance(ltrb) to box(xywh or xyxy)."""
         # [1, 4, 8400]->[1, 2, 8400],[1, 2, 8400]
         lt, rb = distance.chunk(2, dim)
         # 左上角的坐标
@@ -279,9 +299,7 @@ class YOLOv8l(nn.Module):
 
         self.c2f_21 = C2f(False, 3, 1024, 512)
 
-        self.det_low = Detect(256, nc, reg_max)
-        self.det_mid = Detect(512, nc, reg_max)
-        self.det_high = Detect(512, nc, reg_max)
+        self.det = Detect(nc, reg_max)
 
     def forward(self, x):
         # backbone
@@ -313,7 +331,7 @@ class YOLOv8l(nn.Module):
 
         x21 = self.c2f_21(x20)
 
-        return [x15, x18, x21]
+        return self.det([x15, x18, x21])
 
 
 if __name__ == '__main__':
@@ -334,6 +352,6 @@ if __name__ == '__main__':
     with torch.no_grad():
         out = net(batch_input)
 
-    print(out)
+    print(out[1].shape)
     # feature_visualization(out, "nn.Conv2d, nn.Conv2d, nn.Conv2d", 5)
     # summary(net, input_size=(3, 640, 640))
