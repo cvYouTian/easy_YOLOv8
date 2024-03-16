@@ -5,14 +5,11 @@ from PIL import Image
 from torch import nn
 import torch.nn.functional as F
 from typing import Union, Type
-import numpy as np
-from loss import DFL
 from torchvision import transforms
-import matplotlib.pyplot as plt
-import math
 from pathlib import Path
+from YOLOv8lite.Utils import make_anchors, dist2bbox
 
-from myV8.network.loss import DFL
+from YOLOv8lite.network.loss import DFL
 
 
 def auto_padding(kernel_size, pad=None):
@@ -189,7 +186,7 @@ class Detect(nn.Module):
 
         # [2, 8400]  [1, 8400]
         self.anchors, self.strides = (x.transpose(0, 1)
-                                      for x in self.make_anchors(x, self.stride, 0.5))
+                                      for x in make_anchors(x, self.stride, 0.5))
         # [1, 80+64, 8400] : 三个尺寸所有的像素点信息, 即每个像素点都要预测出80个类别信息和16组的坐标信息
         x_cat = torch.cat([xi.view(shape[0], self.no, -1) for xi in x], 2)
 
@@ -197,57 +194,57 @@ class Detect(nn.Module):
         # 拆分时和153行的位置信息对应，即定位信息在前， 分类信息在后
         box, cls = x_cat.split(split_size=(self.reg_max * 4, self.nc), dim=1)
         # dfl:[1, 4, 8400], anchors: [1, 2, 8400] -> [1, 4, 8400] 最后的bbox坐标
-        dbox = self.dist2bbox(self.dfl(box), self.anchors.unsqueeze(0), xywh=True, dim=1) * self.strides
+        dbox = dist2bbox(self.dfl(box), self.anchors.unsqueeze(0), xywh=True, dim=1) * self.strides
         # cls这里使用的是sigmiod函数，做了一下归一化 -> [1, 84, 8400]
         y = torch.cat((dbox, cls.sigmoid()), 1)
 
         return y, x
 
 
-
-    @staticmethod
-    def make_anchors(feat_list, strides, grid_cell_offset=0.5):
-        """glenn从特征中生成anchors
-
-            Args:
-                grid_cell_offset: 这里使用的是0.5就意味着使用的是中心点坐标, 使用的是FCOS的坐标计算的方法
-
-        """
-        # 储存列表
-        anchor_points, stride_tensor = [], []
-        assert feat_list is not None, "your feat_list is None"
-        dtype, device = feat_list[0].dtype, feat_list[0].device
-
-        for i, stride in enumerate(strides):
-            _, _, h, w = feat_list[i].shape
-            sx = torch.arange(end=w, dtype=dtype, device=device) + grid_cell_offset
-            sy = torch.arange(end=h, dtype=dtype, device=device) + grid_cell_offset
-            # pytorch >= 1.1.0
-            # [80，]->[80, 80]
-            sy, sx = torch.meshgrid(sy, sx, indexing="ij")
-            # [80, 80]->[80, 80, 2]->[6400, 2] 6400个anchor点
-            anchor_points.append(torch.stack((sx, sy), -1).view(-1, 2))
-            # [6400, 1] 6400个采样率
-            stride_tensor.append(torch.full((h*w, 1), stride, dtype=dtype, device=device))
-
-        # ([8400, 2], [8400, 1])
-        return torch.cat(anchor_points), torch.cat(stride_tensor)
-
-    @staticmethod
-    def dist2bbox(distance, anchor_points, xywh=True, dim=-1):
-        """glenn Transform distance(ltrb) to box(xywh or xyxy)."""
-        # [1, 4, 8400]->[1, 2, 8400],[1, 2, 8400]
-        lt, rb = distance.chunk(2, dim)
-        # 左上角的坐标
-        x1y1 = anchor_points - lt
-        # 右下角的坐标
-        x2y2 = anchor_points + rb
-        if xywh:
-            c_xy = (x1y1 + x2y2) / 2
-            wh = x2y2 - x1y1
-            return torch.cat((c_xy, wh), dim)  # xywh bbox
-
-        return torch.cat((x1y1, x2y2), dim)  # xyxy bbox
+    #
+    # @staticmethod
+    # def make_anchors(feat_list, strides, grid_cell_offset=0.5):
+    #     """glenn从特征中生成anchors
+    #
+    #         Args:
+    #             grid_cell_offset: 这里使用的是0.5就意味着使用的是中心点坐标, 使用的是FCOS的坐标计算的方法
+    #
+    #     """
+    #     # 储存列表
+    #     anchor_points, stride_tensor = [], []
+    #     assert feat_list is not None, "your feat_list is None"
+    #     dtype, device = feat_list[0].dtype, feat_list[0].device
+    #
+    #     for i, stride in enumerate(strides):
+    #         _, _, h, w = feat_list[i].shape
+    #         sx = torch.arange(end=w, dtype=dtype, device=device) + grid_cell_offset
+    #         sy = torch.arange(end=h, dtype=dtype, device=device) + grid_cell_offset
+    #         # pytorch >= 1.1.0
+    #         # [80，]->[80, 80]
+    #         sy, sx = torch.meshgrid(sy, sx, indexing="ij")
+    #         # [80, 80]->[80, 80, 2]->[6400, 2] 6400个anchor点
+    #         anchor_points.append(torch.stack((sx, sy), -1).view(-1, 2))
+    #         # [6400, 1] 6400个采样率
+    #         stride_tensor.append(torch.full((h*w, 1), stride, dtype=dtype, device=device))
+    #
+    #     # ([8400, 2], [8400, 1])
+    #     return torch.cat(anchor_points), torch.cat(stride_tensor)
+    #
+    # @staticmethod
+    # def dist2bbox(distance, anchor_points, xywh=True, dim=-1):
+    #     """glenn Transform distance(ltrb) to box(xywh or xyxy)."""
+    #     # [1, 4, 8400]->[1, 2, 8400],[1, 2, 8400]
+    #     lt, rb = distance.chunk(2, dim)
+    #     # 左上角的坐标
+    #     x1y1 = anchor_points - lt
+    #     # 右下角的坐标
+    #     x2y2 = anchor_points + rb
+    #     if xywh:
+    #         c_xy = (x1y1 + x2y2) / 2
+    #         wh = x2y2 - x1y1
+    #         return torch.cat((c_xy, wh), dim)  # xywh bbox
+    #
+    #     return torch.cat((x1y1, x2y2), dim)  # xyxy bbox
 
 
 class YOLOv8l(nn.Module):
@@ -350,8 +347,9 @@ if __name__ == '__main__':
     batch_input = image.unsqueeze(0).to("cuda:0")
 
     with torch.no_grad():
+        # tensor: [1, 84, 8400], list[tensor]: [x15, x18, x21]
         out = net(batch_input)
 
-    print(out[1].shape)
+    print(out)
     # feature_visualization(out, "nn.Conv2d, nn.Conv2d, nn.Conv2d", 5)
     # summary(net, input_size=(3, 640, 640))

@@ -16,6 +16,7 @@ from torchvision import transforms
 import matplotlib.pyplot as plt
 from ultralytics import YOLO
 
+
 def train():
     # Load a model
     model = YOLO('yolov8l.yaml')
@@ -31,7 +32,7 @@ def train():
     model.train(data="VOC.yaml", epochs=5, imgsz=640)
 
 
-def onnx(path: Union[str, Path] = "/home/youtian/Documents/pro/pyCode/easy_YOLOv8/runs/yolov8l.pt" ):
+def onnx(path: Union[str, Path] = "/home/youtian/Documents/pro/pyCode/easy_YOLOv8/runs/yolov8l.pt"):
     # you need numpy==1.24.3 ,otherwise it will report Error
     onnxpath = Path(path).with_suffix(".onnx")
     print(onnxpath)
