@@ -13,7 +13,7 @@ __all__ = ('DFL', 'HGBlock', 'HGStem', 'SPP', 'SPPF', 'C1', 'C2', 'C3', 'C2f', '
            'GhostBottleneck', 'Bottleneck', 'BottleneckCSP', 'Proto', 'RepC3', 'PconvBottleneck', 'FasterC2f_N',
            'FasterC2f', 'PconvBottleneck_n', "SCConvBottleneck", "SCConv", "SCC2f", "SC_PW_Bottleneck", "SC_PW_C2f",
            "SC_Conv3_C2f", "SC_Conv3_Bottleneck", "Conv3_SC_C2f", "Conv3_SC_Bottleneck", "AsffTribeLevel",
-           "AsffDoubLevel")
+           "AsffDoubLevel", "RFBblock")
 
 
 def autopad(k, p=None, d=1):
@@ -650,7 +650,8 @@ class Conv3_SC_Bottleneck(nn.Module):
 
 
 class RFBblock(nn.Module):
-    def __init__(self, in_ch, residual=False):
+    # def __init__(self, in_ch, residual=False):
+    def __init__(self, in_ch):
         super(RFBblock, self).__init__()
         inter_c = in_ch // 4
         self.branch_0 = nn.Sequential(
@@ -670,7 +671,7 @@ class RFBblock(nn.Module):
             nn.Conv2d(in_channels=inter_c, out_channels=inter_c, kernel_size=5, stride=1, padding=2),
             nn.Conv2d(in_channels=inter_c, out_channels=inter_c, kernel_size=3, stride=1, dilation=3, padding=3)
         )
-        self.residual = residual
+        # self.residual = residual
 
     def forward(self, x):
         x_0 = self.branch_0(x)
@@ -678,8 +679,8 @@ class RFBblock(nn.Module):
         x_2 = self.branch_2(x)
         x_3 = self.branch_3(x)
         out = torch.cat((x_0, x_1, x_2, x_3), 1)
-        if self.residual:
-            out += x
+        # if self.residual:
+        #     out += x
         return out
 
 

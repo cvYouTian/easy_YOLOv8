@@ -45,7 +45,6 @@ head:
   - [[-1, 9], 1, Concat, [1]]  # cat head P5
   - [-1, 3, FasterC2f_N, [1024]]  # 21 (P5/32-large)
 
-
   - [15, 1, RFBblock, [256]] # 22
   - [18, 1, RFBblock, [512]] # 23
   - [21, 1, RFBblock, [512]] # 24

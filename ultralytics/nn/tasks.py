@@ -9,7 +9,7 @@ from ultralytics.nn.modules import (AIFI, C1, C2, C3, C3TR, SPP, SPPF, Bottlenec
                                     RTDETRDecoder, Segment, PConv, FasterC2f_N, FasterC2f, PconvBottleneck,
                                     PconvBottleneck_n, SCConv, SCConvBottleneck, SCC2f, SC_PW_Bottleneck, SC_PW_C2f,
                                     SC_Conv3_Bottleneck, SC_Conv3_C2f, Conv3_SC_C2f, Conv3_SC_Bottleneck, AsffTribeLevel,
-                                    AsffDoubLevel, AsffDetect)
+                                    AsffDoubLevel, AsffDetect, RFBblock)
 
 from ultralytics.utils import DEFAULT_CFG_DICT, DEFAULT_CFG_KEYS, LOGGER, colorstr, emojis, yaml_load
 from ultralytics.utils.checks import check_requirements, check_suffix, check_yaml
@@ -720,7 +720,7 @@ def parse_model(d, ch, verbose=True):
         # 判断repeats
         n = n_ = max(round(n * depth), 1) if n > 1 else n  # depth gain
         # add FasterC2f 、PconvBottleneck and PConv ...
-        # 判断moudule
+        # 判断moudule，注意这里的函数是只承接上一层的，即f==-1
         if m in (Classify, Conv, ConvTranspose, GhostConv, Bottleneck, GhostBottleneck, SPP, SPPF, DWConv, Focus,
                  BottleneckCSP, C1, C2, C2f, C3, C3TR, C3Ghost, nn.ConvTranspose2d, DWConvTranspose2d, C3x, RepC3,
                  FasterC2f_N, FasterC2f, PconvBottleneck, PconvBottleneck_n, PConv, SCConv, SCConvBottleneck, SCC2f,
@@ -734,9 +734,10 @@ def parse_model(d, ch, verbose=True):
                 c2 = make_divisible(min(c2, max_channels) * width, 8)
             # 使用*表达式将内部的args列表解开， [输入的chanel， 输出的chanel，]
             args = [c1, c2, *args[1:]]
-
+            # 插入模块的重复次数
             if m in (BottleneckCSP, C1, C2, C2f, C3, C3TR, C3Ghost, C3x, RepC3, FasterC2f_N, FasterC2f, SCC2f,
                      SC_PW_C2f, SC_Conv3_C2f, Conv3_SC_C2f):
+
                 args.insert(2, n)  # number of repeats
                 n = 1
 
@@ -748,7 +749,6 @@ def parse_model(d, ch, verbose=True):
             if m is HGBlock:
                 args.insert(4, n)  # number of repeats
                 n = 1
-
         elif m is nn.BatchNorm2d:
             args = [ch[f]]
         elif m is Concat:
@@ -766,7 +766,8 @@ def parse_model(d, ch, verbose=True):
             args.insert(1, [ch[x] for x in f])
         else:
             c2 = ch[f]
-
+        # 如果module的repeats大于1, 需要将module进行封装起来
+        # 注意这里args可能是多个值
         m_ = nn.Sequential(*(m(*args) for _ in range(n))) if n > 1 else m(*args)  # module
         t = str(m)[8:-2].replace('__main__.', '')  # module type
         m.np = sum(x.numel() for x in m_.parameters())  # number params
