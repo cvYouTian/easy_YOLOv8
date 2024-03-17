@@ -7,8 +7,8 @@ import torch.nn.functional as F
 from typing import Union, Type
 from torchvision import transforms
 from pathlib import Path
-from YOLOv8lite.Utils import make_anchors, dist2bbox
 
+from YOLOv8lite.Utils import make_anchors, dist2bbox
 
 
 def auto_padding(kernel_size, pad=None):
@@ -228,52 +228,6 @@ class Detect(nn.Module):
         return y, x
 
 
-    #
-    # @staticmethod
-    # def make_anchors(feat_list, strides, grid_cell_offset=0.5):
-    #     """glenn从特征中生成anchors
-    #
-    #         Args:
-    #             grid_cell_offset: 这里使用的是0.5就意味着使用的是中心点坐标, 使用的是FCOS的坐标计算的方法
-    #
-    #     """
-    #     # 储存列表
-    #     anchor_points, stride_tensor = [], []
-    #     assert feat_list is not None, "your feat_list is None"
-    #     dtype, device = feat_list[0].dtype, feat_list[0].device
-    #
-    #     for i, stride in enumerate(strides):
-    #         _, _, h, w = feat_list[i].shape
-    #         sx = torch.arange(end=w, dtype=dtype, device=device) + grid_cell_offset
-    #         sy = torch.arange(end=h, dtype=dtype, device=device) + grid_cell_offset
-    #         # pytorch >= 1.1.0
-    #         # [80，]->[80, 80]
-    #         sy, sx = torch.meshgrid(sy, sx, indexing="ij")
-    #         # [80, 80]->[80, 80, 2]->[6400, 2] 6400个anchor点
-    #         anchor_points.append(torch.stack((sx, sy), -1).view(-1, 2))
-    #         # [6400, 1] 6400个采样率
-    #         stride_tensor.append(torch.full((h*w, 1), stride, dtype=dtype, device=device))
-    #
-    #     # ([8400, 2], [8400, 1])
-    #     return torch.cat(anchor_points), torch.cat(stride_tensor)
-    #
-    # @staticmethod
-    # def dist2bbox(distance, anchor_points, xywh=True, dim=-1):
-    #     """glenn Transform distance(ltrb) to box(xywh or xyxy)."""
-    #     # [1, 4, 8400]->[1, 2, 8400],[1, 2, 8400]
-    #     lt, rb = distance.chunk(2, dim)
-    #     # 左上角的坐标
-    #     x1y1 = anchor_points - lt
-    #     # 右下角的坐标
-    #     x2y2 = anchor_points + rb
-    #     if xywh:
-    #         c_xy = (x1y1 + x2y2) / 2
-    #         wh = x2y2 - x1y1
-    #         return torch.cat((c_xy, wh), dim)  # xywh bbox
-    #
-    #     return torch.cat((x1y1, x2y2), dim)  # xyxy bbox
-
-
 class YOLOv8l(nn.Module):
     def __init__(self, nc, reg_max):
         super(YOLOv8l, self).__init__()
@@ -375,8 +329,9 @@ if __name__ == '__main__':
 
     with torch.no_grad():
         # tensor: [1, 84, 8400], list[tensor]: [x15, x18, x21]
-        out = net(batch_input).parameters()
+        out = net(batch_input)
 
-    print(out)
+    print(out.module)
+
     # feature_visualization(out, "nn.Conv2d, nn.Conv2d, nn.Conv2d", 5)
     # summary(net, input_size=(3, 640, 640))

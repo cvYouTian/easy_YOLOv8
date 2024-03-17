@@ -380,7 +380,7 @@ def is_kaggle():
 
 def is_jupyter():
     """
-    Check if the current script is running inside a Jupyter Notebook.
+    Check if the current scrlipt is running inside a Jupyter Notebook.
     Verified on Colab, Jupyterlab, Kaggle, Paperspace.
 
     Returns:
