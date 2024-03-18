@@ -172,47 +172,52 @@ class MFRU(nn.Module):
     """
     def __init__(self, level):
         super(MFRU, self).__init__()
-        # P9的输出【20，20， 512】
-        self.compress_level_0 = SCConv(512)
-        # p6的输出【40，40， 512】
-        self.compress_level_1 = SCConv(512)
-        self.pwconv = nn.Conv2d(512, 256, 1, 1, 0)
-
-        self.expand = add_conv(256, 256, 3, 1)
-
-        # 这个参数是可以消融的
         compress_c = 8
 
-        self.weight_level_0 = add_conv(256, compress_c, 1, 1)
-        self.weight_level_1 = add_conv(256, compress_c, 1, 1)
-        self.weight_level_2 = add_conv(self.inter_dim, compress_c, 1, 1)
+        # P9的输出【20，20， 512】
+        self.scconv512 = SCConv(512)
+        self.scconv256 = SCConv(512)
+        # p6的输出【40，40， 512】
+        self.pwconv = nn.Conv2d(512, 256, 1, 1, 0)
 
-        self.weight_levels = nn.Conv2d(compress_c * 3, 3, kernel_size=1, stride=1, padding=0)
+        # self.weight_level_0 = add_conv(256, compress_c, 1, 1)
+        self.weight_level_0 = nn.Conv2d(256, compress_c, 1, 1, 0)
+        # self.weight_level_1 = add_conv(256, compress_c, 1, 1)
+        self.weight_level_1 = nn.Conv2d(256, compress_c, 1, 1, 0)
+        self.weight_level_2 = nn.Conv2d(256, compress_c, 1, 1, 0)
+
+        self.weight_levels = nn.Conv2d(compress_c * 3, 3, 1, 1, 0)
 
     def forward(self, x):
+        """
+        Args:
+            [20, 40 , 80]
+        """
         # [20, 20, 256]
-        level_0_compressed = self.pwconv(self.compress_level_0(x[0]))
+        level_0 = self.pwconv(self.scconv512(x[0]))
         # out [80, 80, 256]
-        level_0_resized = F.interpolate(level_0_compressed, scale_factor=4, mode='nearest')
+        level_0_resized = F.interpolate(level_0, scale_factor=4, mode='nearest')
         # [40, 40, 256]  
-        level_1_compressed = self.pwconv(self.compress_level_1(x[1]))
+        level_1 = self.pwconv(self.scconv512(x[1]))
         # out [80, 80, 256]
-        level_1_resized = F.interpolate(level_1_compressed, scale_factor=2, mode='nearest')
+        level_1_resized = F.interpolate(level_1, scale_factor=2, mode='nearest')
         # out [80, 80, 256]
-        level_2_resized = x[2]
+        level_2_resized = self.scconv256(x[2])
 
         level_0_weight_v = self.weight_level_0(level_0_resized)
         level_1_weight_v = self.weight_level_1(level_1_resized)
         level_2_weight_v = self.weight_level_2(level_2_resized)
+
         levels_weight_v = torch.cat((level_0_weight_v, level_1_weight_v, level_2_weight_v), 1)
         levels_weight = self.weight_levels(levels_weight_v)
+        # 通道维
         levels_weight = F.softmax(levels_weight, dim=1)
 
         fused_out_reduced = level_0_resized * levels_weight[:, 0:1, :, :] + \
                             level_1_resized * levels_weight[:, 1:2, :, :] + \
                             level_2_resized * levels_weight[:, 2:, :, :]
-
-        out = self.expand(fused_out_reduced)
+        # [80, 80, 256]
+        out = self.scconv256(fused_out_reduced)
 
         return out
 
