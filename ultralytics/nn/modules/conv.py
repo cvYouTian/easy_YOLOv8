@@ -418,6 +418,10 @@ class CRU(nn.Module):
 
 
 class SCConv(nn.Module):
+    """
+    Args:
+        op_channel: out_putchannel
+    """
     def __init__(self,
                  op_channel: int,
                  group_num: int = 4,
