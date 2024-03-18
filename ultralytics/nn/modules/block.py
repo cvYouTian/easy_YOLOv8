@@ -13,7 +13,7 @@ __all__ = ('DFL', 'HGBlock', 'HGStem', 'SPP', 'SPPF', 'C1', 'C2', 'C3', 'C2f', '
            'GhostBottleneck', 'Bottleneck', 'BottleneckCSP', 'Proto', 'RepC3', 'PconvBottleneck', 'FasterC2f_N',
            'FasterC2f', 'PconvBottleneck_n', "SCConvBottleneck", "SCConv", "SCC2f", "SC_PW_Bottleneck", "SC_PW_C2f",
            "SC_Conv3_C2f", "SC_Conv3_Bottleneck", "Conv3_SC_C2f", "Conv3_SC_Bottleneck", "AsffTribeLevel",
-           "AsffDoubLevel", "RFBblock")
+           "AsffDoubLevel", "RFBblock", "MFRU")
 
 
 def autopad(k, p=None, d=1):
@@ -167,16 +167,16 @@ class AsffDoubLevel(nn.Module):
 
 
 class MFRU(nn.Module):
-    """
+    """多尺度特征重构单元
     使用SRU来设计
     """
     def __init__(self, level):
         super(MFRU, self).__init__()
-        compress_c = 8
+        compress_c = 16
 
         # P9的输出【20，20， 512】
         self.scconv512 = SCConv(512)
-        self.scconv256 = SCConv(512)
+        self.scconv256 = SCConv(256)
         # p6的输出【40，40， 512】
         self.pwconv = nn.Conv2d(512, 256, 1, 1, 0)
 

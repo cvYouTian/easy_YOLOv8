@@ -9,7 +9,7 @@ import torch.nn as nn
 
 
 __all__ = ('Conv', 'LightConv', 'DWConv', 'DWConvTranspose2d', 'ConvTranspose', 'Focus', 'GhostConv',
-           'ChannelAttention', 'SpatialAttention', 'CBAM', 'Concat', 'RepConv', 'PConv', "SCConv", "SRU", "CRU", "FC")
+           'ChannelAttention', 'SpatialAttention', 'CBAM', 'Concat', 'RepConv', 'PConv', "SCConv")
 
 
 def autopad(k, p=None, d=1):  # kernel, padding, dilation
@@ -429,8 +429,7 @@ class SCConv(nn.Module):
                  alpha: float = 1 / 2,
                  squeeze_radio: int = 2,
                  group_size: int = 2,
-                 group_kernel_size: int = 3,
-                 ):
+                 group_kernel_size: int = 3):
         super().__init__()
         self.SRU = SRU(op_channel,
                        group_num=group_num,
@@ -470,4 +469,5 @@ class Concat(nn.Module):
 
     def forward(self, x):
         """Forward pass for the YOLOv8 mask Proto module."""
+
         return torch.cat(x, self.d)
