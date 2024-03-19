@@ -29,7 +29,7 @@ backbone:
 
 # YOLOv8.0n head
 head:
-  # 要对第九层进行上采样
+  # 要对第九层进行上采样, 所以是-2
   - [-2, 1, nn.Upsample, [None, 2, 'nearest']] # 11
   - [[-1, 6], 1, Concat, [1]]  # cat backbone P4, 12
 
