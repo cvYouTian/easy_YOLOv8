@@ -82,7 +82,6 @@ class BaseModel(nn.Module):
             # it is Concat operation if m.f not is -1
             if m.f != -1:  # if not from previous layer
                 x = y[m.f] if isinstance(m.f, int) else [x if j == -1 else y[j] for j in m.f]  # from earlier layers
-            # 这里添加了一个判断，此判断是为了判断是不是使用了Asff头
             if profile:
                 self._profile_one_layer(m, x, dt)
             x = m(x)   # run
