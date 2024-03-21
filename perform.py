@@ -1,19 +1,14 @@
 import shutil
-import time
 import sys
 import os
 import xml.etree.ElementTree as ET
-import numpy as np
 from ultralytics.utils.downloads import download
 from pathlib import Path
 from typing import Union
-import torch
 import cv2
 import netron
 import time
 from tqdm import tqdm
-from torchvision import transforms
-import matplotlib.pyplot as plt
 from ultralytics import YOLO
 
 
@@ -29,7 +24,7 @@ def train():
 
     # Train the model
     # model.train(data="HSTS6.yaml", epochs=150, imgsz=640)
-    model.train(data="VOC.yaml", epochs=5, imgsz=640)
+    model.train(data="CHTS6.yaml", epochs=5, imgsz=640)
 
 
 def onnx(path: Union[str, Path] = "/home/youtian/Documents/pro/pyCode/easy_YOLOv8/runs/yolov8l.pt"):
