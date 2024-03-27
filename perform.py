@@ -27,7 +27,7 @@ def train():
     model.train(data="CHTS6.yaml", epochs=5, imgsz=640)
 
 
-def onnx(path: Union[str, Path] = "/home/youtian/Documents/pro/pyCode/easy_YOLOv8/runs/yolov8l.pt"):
+def onnx(path: Union[str, Path] = "/home/youtian/Documents/pro/pyCode/easy_YOLOv8/yolov8l.pt"):
     # you need numpy==1.24.3 ,otherwise it will report Error
     onnxpath = Path(path).with_suffix(".onnx")
     print(onnxpath)
@@ -61,22 +61,37 @@ def test_img():
 
 
 def test_video():
-    model = YOLO("/home/youtian/Documents/pro/pyCode/easy_YOLOv8/runs/detect/YOLOv8l/weights/best.pt")
-    cap = cv2.VideoCapture(0)
-    size = (int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),)
+    model = YOLO("/home/youtian/Documents/pro/pyCode/easy_YOLOv8/yolov8x.pt")
 
-    out = cv2.VideoWriter('airplane.mp4', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 40, size)
+    path = Path("/home/youtian/Documents/pro/pyCode/datasets/shitang.mp4")
+    cap = cv2.VideoCapture(str(path))
+
+    if not cap.isOpened():
+        print("Error: Could not open video.")
+        exit()
+
+    size = (int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
+
+    # 使用正确的文件名
+    output_path = Path(f"{path.stem}_output.mp4")
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')  # 尝试使用XVID编码
+    out = cv2.VideoWriter(str(output_path), fourcc, 40, size)
+
     while cap.isOpened():
         ret, frame = cap.read()
         if ret:
             res = model(frame)
-            ann = res[0].plot()
+            ann = res[0].plot(line_width=3)
             cv2.imshow("yolo", ann)
             out.write(ann)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
+        else:
+            break
+
     cv2.destroyAllWindows()
     cap.release()
+    out.release()
 
 
 def test_folders(model_path: str = "/home/youtian/Documents/pro/pyCode/easy_YOLOv8/runs/detect/YOLOv8l/weights/best.pt",
@@ -233,8 +248,8 @@ def predict():
 if __name__ == "__main__":
     # loss_compara_pic("./loss_csv")
     # calc_instance()
-    train()
-    # test_video()
+    # train()
+    test_video()
     # test_folders()
     # test_img()
     # tracker()
