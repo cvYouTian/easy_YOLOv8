@@ -12,7 +12,7 @@ from .transformer import TransformerBlock
 __all__ = ('DFL', 'HGBlock', 'HGStem', 'SPP', 'SPPF', 'C1', 'C2', 'C3', 'C2f', 'C3x', 'C3TR', 'C3Ghost',
            'GhostBottleneck', 'Bottleneck', 'BottleneckCSP', 'Proto', 'RepC3', 'PconvBottleneck', 'FasterC2f_N',
            'FasterC2f', 'PconvBottleneck_n', "SCConvBottleneck", "SCConv", "SCC2f", "SC_PW_Bottleneck", "SC_PW_C2f",
-           "SC_Conv3_C2f", "SC_Conv3_Bottleneck", "Conv3_SC_C2f", "Conv3_SC_Bottleneck", "AsffTribeLevel",
+           "SC_Conv3_C2f", "SC_Conv3_Bottleneck", "Conv3_SC_C2f", "Conv3_SC_Bottleneck", "AsffQuadrupLevel", "AsffTribeLevel",
            "AsffDoubLevel", "RFBblock", "MFRU")
 
 
@@ -129,14 +129,15 @@ class AsffQuadrupLevel(nn.Module):
         if level == 0:
             self.stride_level_1 = nn.MaxPool2d(kernel_size=2, stride=2)
             self.stride_level_2 = add_conv(256, self.inter_dim, 3, 2)
+            self.stride_level_3 = add_conv(256, self.inter_dim, 3, 2)
             self.expand = add_conv(self.inter_dim, 512, 3, 1)
-        if level == 1:
-            self.stride_level_1 = nn.MaxPool2d(kernel_size=2, stride=2)
+        elif level == 1:
             self.stride_level_2 = add_conv(256, self.inter_dim, 3, 2)
             self.expand = add_conv(self.inter_dim, 512, 3, 1)
         elif level == 2:
-            self.stride_level_2 = add_conv(256, self.inter_dim, 3, 2)
-            self.expand = add_conv(self.inter_dim, 512, 3, 1)
+            self.compress_level_0 = add_conv(512, self.inter_dim, 1, 1)
+            self.compress_level_1 = add_conv(512, self.inter_dim, 1, 1)
+            self.expand = add_conv(self.inter_dim, 256, 3, 1)
         elif level == 3:
             self.compress_level_0 = add_conv(512, self.inter_dim, 1, 1)
             self.compress_level_1 = add_conv(512, self.inter_dim, 1, 1)
@@ -157,6 +158,8 @@ class AsffQuadrupLevel(nn.Module):
             level_1_resized = self.stride_level_1(x[1])
             level_2_downsampled_inter = F.max_pool2d(x[2], 3, stride=2, padding=1)
             level_2_resized = self.stride_level_2(level_2_downsampled_inter)
+            level_3_downsampled_inter = F.max_pool2d(F.max_pool2d(x[2], 3, stride=2, padding=1), 3, stride=2, padding=1)
+            level_3_resized = self.weight_level_3(level_3_downsampled_inter)
 
         elif self.level == 1:
             level_0_resized = F.interpolate(x[0], scale_factor=2, mode='nearest')
