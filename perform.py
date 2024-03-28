@@ -248,8 +248,8 @@ def predict():
 if __name__ == "__main__":
     # loss_compara_pic("./loss_csv")
     # calc_instance()
-    # train()
-    test_video()
+    train()
+    # test_video()
     # test_folders()
     # test_img()
     # tracker()

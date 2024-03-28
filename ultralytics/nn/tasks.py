@@ -8,8 +8,8 @@ from ultralytics.nn.modules import (AIFI, C1, C2, C3, C3TR, SPP, SPPF, Bottlenec
                                     Focus, GhostBottleneck, GhostConv, HGBlock, HGStem, Pose, RepC3, RepConv,
                                     RTDETRDecoder, Segment, PConv, FasterC2f_N, FasterC2f, PconvBottleneck,
                                     PconvBottleneck_n, SCConv, SCConvBottleneck, SCC2f, SC_PW_Bottleneck, SC_PW_C2f,
-                                    SC_Conv3_Bottleneck, SC_Conv3_C2f, Conv3_SC_C2f, Conv3_SC_Bottleneck, AsffTribeLevel,
-                                    AsffDoubLevel, AsffDetect, RFBblock, MFRU)
+                                    SC_Conv3_Bottleneck, SC_Conv3_C2f, Conv3_SC_C2f, Conv3_SC_Bottleneck, AsffQuadrupLevel,
+                                    AsffTribeLevel, AsffDoubLevel, AsffDetect, RFBblock, MFRU, MFRUs)
 
 from ultralytics.utils import DEFAULT_CFG_DICT, DEFAULT_CFG_KEYS, LOGGER, colorstr, emojis, yaml_load
 from ultralytics.utils.checks import check_requirements, check_suffix, check_yaml
@@ -752,12 +752,12 @@ def parse_model(d, ch, verbose=True):
             args = [ch[f]]
         elif m is Concat:
             c2 = sum(ch[x] for x in f)
-        elif m is MFRU:
+        elif m in (MFRU, MFRUs):
             c2 = 256
-        elif m in (AsffDoubLevel, AsffTribeLevel):
+        elif m in (AsffDoubLevel, AsffTribeLevel, AsffQuadrupLevel):
             if m is AsffDoubLevel:
                 c2 = 512 if args[0] == 0 else 256
-            elif m is AsffTribeLevel:
+            elif m is AsffTribeLevel or AsffQuadrupLevel:
                 c2 = 512 if args[0] in (0, 1) else 256
         elif m in (Detect, Segment, Pose, AsffDetect):
             args.append([ch[x] for x in f])

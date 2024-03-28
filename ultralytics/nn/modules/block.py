@@ -13,7 +13,7 @@ __all__ = ('DFL', 'HGBlock', 'HGStem', 'SPP', 'SPPF', 'C1', 'C2', 'C3', 'C2f', '
            'GhostBottleneck', 'Bottleneck', 'BottleneckCSP', 'Proto', 'RepC3', 'PconvBottleneck', 'FasterC2f_N',
            'FasterC2f', 'PconvBottleneck_n', "SCConvBottleneck", "SCConv", "SCC2f", "SC_PW_Bottleneck", "SC_PW_C2f",
            "SC_Conv3_C2f", "SC_Conv3_Bottleneck", "Conv3_SC_C2f", "Conv3_SC_Bottleneck", "AsffQuadrupLevel", "AsffTribeLevel",
-           "AsffDoubLevel", "RFBblock", "MFRU")
+           "AsffDoubLevel", "RFBblock", "MFRU", "MFRUs" )
 
 
 def autopad(k, p=None, d=1):
@@ -131,16 +131,22 @@ class AsffQuadrupLevel(nn.Module):
             self.stride_level_2 = add_conv(256, self.inter_dim, 3, 2)
             self.stride_level_3 = add_conv(256, self.inter_dim, 3, 2)
             self.expand = add_conv(self.inter_dim, 512, 3, 1)
+
         elif level == 1:
             self.stride_level_2 = add_conv(256, self.inter_dim, 3, 2)
+            self.stride_level_3 = add_conv(256, self.inter_dim, 3, 2)
             self.expand = add_conv(self.inter_dim, 512, 3, 1)
+
         elif level == 2:
             self.compress_level_0 = add_conv(512, self.inter_dim, 1, 1)
             self.compress_level_1 = add_conv(512, self.inter_dim, 1, 1)
+            self.compress_level_3 = add_conv(256, self.inter_dim, 3, 2)
             self.expand = add_conv(self.inter_dim, 256, 3, 1)
+
         elif level == 3:
             self.compress_level_0 = add_conv(512, self.inter_dim, 1, 1)
             self.compress_level_1 = add_conv(512, self.inter_dim, 1, 1)
+            self.compress_level_2 = add_conv(256, self.inter_dim, 1, 1)
             self.expand = add_conv(self.inter_dim, 256, 3, 1)
 
         compress_c = 8
@@ -158,13 +164,15 @@ class AsffQuadrupLevel(nn.Module):
             level_1_resized = self.stride_level_1(x[1])
             level_2_downsampled_inter = F.max_pool2d(x[2], 3, stride=2, padding=1)
             level_2_resized = self.stride_level_2(level_2_downsampled_inter)
-            level_3_downsampled_inter = F.max_pool2d(F.max_pool2d(x[2], 3, stride=2, padding=1), 3, stride=2, padding=1)
+            level_3_downsampled_inter = F.max_pool2d(F.max_pool2d(x[3], 3, stride=2, padding=1)
+                                                     , 3, stride=2, padding=1)
             level_3_resized = self.weight_level_3(level_3_downsampled_inter)
 
         elif self.level == 1:
             level_0_resized = F.interpolate(x[0], scale_factor=2, mode='nearest')
             level_1_resized = x[1]
             level_2_resized = self.stride_level_2(x[2])
+            level_3_resized = self.stride_level_3(F.max_pool2d(x[3], 3, stride=2, padding=1))
 
         elif self.level == 2:
             level_0_compressed = self.compress_level_0(x[0])
@@ -172,25 +180,28 @@ class AsffQuadrupLevel(nn.Module):
             level_1_compressed = self.compress_level_1(x[1])
             level_1_resized = F.interpolate(level_1_compressed, scale_factor=2, mode='nearest')
             level_2_resized = x[2]
+            level_3_resized = self.compress_level_3(x[3])
 
         elif self.level == 3:
             level_0_compressed = self.compress_level_0(x[0])
-            level_0_resized = F.interpolate(level_0_compressed, scale_factor=4, mode='nearest')
+            level_0_resized = F.interpolate(level_0_compressed, scale_factor=8, mode='nearest')
             level_1_compressed = self.compress_level_1(x[1])
-            level_1_resized = F.interpolate(level_1_compressed, scale_factor=2, mode='nearest')
-            level_2_resized = x[2]
+            level_1_resized = F.interpolate(level_1_compressed, scale_factor=4, mode='nearest')
+            level_2_resized = F.interpolate(x[2], scale_factor=2, mode='nearest')
+            level_3_resized = x[3]
 
         level_0_weight_v = self.weight_level_0(level_0_resized)
         level_1_weight_v = self.weight_level_1(level_1_resized)
         level_2_weight_v = self.weight_level_2(level_2_resized)
         level_3_weight_v = self.weight_level_3(level_3_resized)
-        levels_weight_v = torch.cat((level_0_weight_v, level_1_weight_v, level_2_weight_v), 1)
+        levels_weight_v = torch.cat((level_0_weight_v, level_1_weight_v, level_2_weight_v, level_3_weight_v), 1)
         levels_weight = self.weight_levels(levels_weight_v)
         levels_weight = F.softmax(levels_weight, dim=1)
 
         fused_out_reduced = level_0_resized * levels_weight[:, 0:1, :, :] + \
                             level_1_resized * levels_weight[:, 1:2, :, :] + \
-                            level_2_resized * levels_weight[:, 2:, :, :]
+                            level_2_resized * levels_weight[:, 2:3, :, :] + \
+                            level_3_resized * levels_weight[:, 3:, :, :]
 
         out = self.expand(fused_out_reduced)
 
@@ -287,6 +298,64 @@ class MFRU(nn.Module):
         level_2_weight_v = self.weight_level_2(level_2_resized)
 
         levels_weight_v = torch.cat((level_0_weight_v, level_1_weight_v, level_2_weight_v), 1)
+        levels_weight = self.weight_levels(levels_weight_v)
+        # 通道维
+        levels_weight = F.softmax(levels_weight, dim=1)
+
+        fused_out_reduced = level_0_resized * levels_weight[:, 0:1, :, :] + \
+                            level_1_resized * levels_weight[:, 1:2, :, :] + \
+                            level_2_resized * levels_weight[:, 2:, :, :]
+        # [80, 80, 256]
+        out = self.scconv256(fused_out_reduced)
+
+        return out
+
+
+class MFRUs(nn.Module):
+    """多尺度特征重构单元
+    使用SRU来设计
+    """
+    def __init__(self, level):
+        super(MFRUs, self).__init__()
+        compress_c = 16
+
+        # P9的输出【20，20， 512】
+        self.scconv512 = SCConv(512)
+        self.scconv256 = SCConv(256)
+        # p6的输出【40，40， 512】
+        self.pwconv = nn.Conv2d(512, 256, 1, 1, 0)
+
+        # self.weight_level_0 = add_conv(256, compress_c, 1, 1)
+        self.weight_level_0 = nn.Conv2d(256, compress_c, 1, 1, 0)
+        # self.weight_level_1 = add_conv(256, compress_c, 1, 1)
+        self.weight_level_1 = nn.Conv2d(256, compress_c, 1, 1, 0)
+        self.weight_level_2 = nn.Conv2d(256, compress_c, 1, 1, 0)
+
+        self.weight_levels = nn.Conv2d(compress_c * 3, 3, 1, 1, 0)
+
+    def forward(self, x):
+        """
+        Args:
+            [20, 40, 80]
+        """
+        # [20, 20, 256]
+        level_0 = self.pwconv(self.scconv512(x[0]))
+        # out [160, 160, 256]
+        level_0_resized = F.interpolate(level_0, scale_factor=8, mode='nearest')
+        # [40, 40, 256]
+        level_1 = self.pwconv(self.scconv512(x[1]))
+        # out [160, 160, 256]
+        level_1_resized = F.interpolate(level_1, scale_factor=4, mode='nearest')
+        # out [160, 160, 256]
+        level_2 = self.scconv256(x[2])
+        # out [160, 160, 256]
+        level_2_resized = F.interpolate(level_2, scale_factor=2, mode='nearest')
+
+        level_0_weight_v = self.weight_level_0(level_0_resized)
+        level_1_weight_v = self.weight_level_1(level_1_resized)
+        level_2_weight_v = self.weight_level_2(level_2_resized)
+        # out[160, 160, 256]
+        levels_weight_v = torch.cat((level_0_weight_v, level_1_weight_v, level_2_weight_v), 1),
         levels_weight = self.weight_levels(levels_weight_v)
         # 通道维
         levels_weight = F.softmax(levels_weight, dim=1)
