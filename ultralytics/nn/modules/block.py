@@ -13,7 +13,7 @@ __all__ = ('DFL', 'HGBlock', 'HGStem', 'SPP', 'SPPF', 'C1', 'C2', 'C3', 'C2f', '
            'GhostBottleneck', 'Bottleneck', 'BottleneckCSP', 'Proto', 'RepC3', 'PconvBottleneck', 'FasterC2f_N',
            'FasterC2f', 'PconvBottleneck_n', "SCConvBottleneck", "SCConv", "SCC2f", "SC_PW_Bottleneck", "SC_PW_C2f",
            "SC_Conv3_C2f", "SC_Conv3_Bottleneck", "Conv3_SC_C2f", "Conv3_SC_Bottleneck", "AsffQuadrupLevel", "AsffTribeLevel",
-           "AsffDoubLevel", "RFBblock", "MFRU", "MFRUs" )
+           "AsffDoubLevel", "RFBblock", "MFRU", "MFRUs")
 
 
 def autopad(k, p=None, d=1):
@@ -319,16 +319,16 @@ class MFRUs(nn.Module):
         super(MFRUs, self).__init__()
         compress_c = 16
 
-        self.scconv = SCConv(128)
+        self.scconv = SCConv(256)
 
-        self.pwconv0 = nn.Conv2d(512, 128, 1, 1, 0)
-        self.pwconv1 = nn.Conv2d(512, 128, 1, 1, 0)
-        self.pwconv2 = nn.Conv2d(256, 128, 1, 1, 0)
+        self.pwconv0 = nn.Conv2d(512, 256, 1, 1, 0)
+        self.pwconv1 = nn.Conv2d(512, 256, 1, 1, 0)
+        self.pwconv2 = nn.Conv2d(256, 256, 1, 1, 0)
 
 
-        self.weight_level_0 = nn.Conv2d(128, compress_c, 1, 1, 0)
-        self.weight_level_1 = nn.Conv2d(128, compress_c, 1, 1, 0)
-        self.weight_level_2 = nn.Conv2d(128, compress_c, 1, 1, 0)
+        self.weight_level_0 = nn.Conv2d(256, compress_c, 1, 1, 0)
+        self.weight_level_1 = nn.Conv2d(256, compress_c, 1, 1, 0)
+        self.weight_level_2 = nn.Conv2d(256, compress_c, 1, 1, 0)
 
         self.weight_levels = nn.Conv2d(compress_c * 3, 3, 1, 1, 0)
 
@@ -339,16 +339,16 @@ class MFRUs(nn.Module):
         """
         # [20, 20, 128]
         level_0 = self.pwconv0(x[0])
-        # out [160, 160, 128]
-        level_0_resized = self.scconv(F.interpolate(level_0, scale_factor=8, mode='nearest'))
+        # out [80, 80, 256]
+        level_0_resized = self.scconv(F.interpolate(level_0, scale_factor=4, mode='nearest'))
         # [40, 40, 128]
         level_1 = self.pwconv1(x[1])
-        # out [160, 160, 128]
-        level_1_resized = self.scconv(F.interpolate(level_1, scale_factor=4, mode='nearest'))
-        # out [160, 160, 128]
+        # out [80, 80, 256]
+        level_1_resized = self.scconv(F.interpolate(level_1, scale_factor=2, mode='nearest'))
+        # out [80, 800, 256]
         level_2 = self.pwconv2(x[2])
-        # out [160, 160, 256]
-        level_2_resized = self.scconv(F.interpolate(level_2, scale_factor=2, mode='nearest'))
+        # out [80, 80, 256]
+        level_2_resized = self.scconv(level_2)
 
         level_0_weight_v = self.weight_level_0(level_0_resized)
         level_1_weight_v = self.weight_level_1(level_1_resized)
