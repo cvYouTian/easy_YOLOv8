@@ -9,7 +9,7 @@ from ultralytics.nn.modules import (AIFI, C1, C2, C3, C3TR, SPP, SPPF, Bottlenec
                                     RTDETRDecoder, Segment, PConv, FasterC2f_N, FasterC2f, PconvBottleneck,
                                     PconvBottleneck_n, SCConv, SCConvBottleneck, SCC2f, SC_PW_Bottleneck, SC_PW_C2f,
                                     SC_Conv3_Bottleneck, SC_Conv3_C2f, Conv3_SC_C2f, Conv3_SC_Bottleneck, AsffQuadrupLevel,
-                                    AsffTribeLevel, AsffDoubLevel, AsffDetect, RFBblock, MFRU, MFRUs)
+                                    AsffTribeLevel, AsffDoubLevel, AsffDetect, RFBblock, MFRU)
 
 from ultralytics.utils import DEFAULT_CFG_DICT, DEFAULT_CFG_KEYS, LOGGER, colorstr, emojis, yaml_load
 from ultralytics.utils.checks import check_requirements, check_suffix, check_yaml
@@ -752,7 +752,7 @@ def parse_model(d, ch, verbose=True):
             args = [ch[f]]
         elif m is Concat:
             c2 = sum(ch[x] for x in f)
-        elif m in (MFRU, MFRUs):
+        elif m is MFRU:
             c2 = 256
         elif m in (AsffDoubLevel, AsffTribeLevel, AsffQuadrupLevel):
             if m is AsffDoubLevel:

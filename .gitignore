@@ -10,7 +10,7 @@ SCConv_test.py
 __pycache__/
 *.py[cod]
 *$py.class
-
+gradvis
 # C extensions
 *.so
 

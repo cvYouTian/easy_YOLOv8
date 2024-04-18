@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .conv import Conv, DWConv, GhostConv, LightConv, RepConv, PConv, SCConv
+from .conv import Conv, DWConv, GhostConv, LightConv, RepConv, PConv, SCConv, SRU
 from .transformer import TransformerBlock
 
 
@@ -286,7 +286,7 @@ class MFRU(nn.Module):
         level_0 = self.pwconv(self.scconv512(x[0]))
         # out [80, 80, 256]
         level_0_resized = F.interpolate(level_0, scale_factor=4, mode='nearest')
-        # [40, 40, 256]  
+        # [40, 40, 256]
         level_1 = self.pwconv(self.scconv512(x[1]))
         # out [80, 80, 256]
         level_1_resized = F.interpolate(level_1, scale_factor=2, mode='nearest')
@@ -311,61 +311,70 @@ class MFRU(nn.Module):
         return out
 
 
-class MFRUs(nn.Module):
-    """多尺度特征重构单元
-    使用SRU来设计
-    """
-    def __init__(self, level):
-        super(MFRUs, self).__init__()
-        compress_c = 16
-
-        self.scconv = SCConv(256)
-
-        self.pwconv0 = nn.Conv2d(512, 256, 1, 1, 0)
-        self.pwconv1 = nn.Conv2d(512, 256, 1, 1, 0)
-        self.pwconv2 = nn.Conv2d(256, 256, 1, 1, 0)
-
-
-        self.weight_level_0 = nn.Conv2d(256, compress_c, 1, 1, 0)
-        self.weight_level_1 = nn.Conv2d(256, compress_c, 1, 1, 0)
-        self.weight_level_2 = nn.Conv2d(256, compress_c, 1, 1, 0)
-
-        self.weight_levels = nn.Conv2d(compress_c * 3, 3, 1, 1, 0)
+class CustomUpasample(nn.Module):
+    def __init__(self, scale_factor):
+        super().__init__()
+        self.scale_factor = scale_factor
 
     def forward(self, x):
-        """
-        Args:
-            [20, 40, 80]
-        """
 
-        # [20, 20, 128]
-        level_0 = self.pwconv0(x[0])
-        # out [80, 80, 256]
-        level_0_resized = self.scconv(F.interpolate(level_0, scale_factor=4, mode='nearest'))
-        # [40, 40, 128]
-        level_1 = self.pwconv1(x[1])
-        # out [80, 80, 256]
-        level_1_resized = self.scconv(F.interpolate(level_1, scale_factor=2, mode='nearest'))
-        # out [80, 800, 256]
-        level_2 = self.pwconv2(x[2])
-        # out [80, 80, 256]
-        level_2_resized = self.scconv(level_2)
+        # 获取输入张量的形状
+        batch_size, channels, height, width = x.size()
 
-        level_0_weight_v = self.weight_level_0(level_0_resized)
-        level_1_weight_v = self.weight_level_1(level_1_resized)
-        level_2_weight_v = self.weight_level_2(level_2_resized)
-        # out[160, 160, 256]
-        levels_weight_v = torch.cat((level_0_weight_v, level_1_weight_v, level_2_weight_v), 1)
-        levels_weight = self.weight_levels(levels_weight_v)
-        # 通道维
-        levels_weight = F.softmax(levels_weight, dim=1)
+        # 计算输出张量的形状
+        new_height = height * self.scale_factor
+        new_width = width * self.scale_factor
 
-        fused_out_reduced = level_0_resized * levels_weight[:, 0:1, :, :] + \
-                            level_1_resized * levels_weight[:, 1:2, :, :] + \
-                            level_2_resized * levels_weight[:, 2:, :, :]
-        # [80, 80, 256]
+        # 使用repeat_interleave复制特征图
+        # 首先在高度维度上复制
+        repeated_tensor = torch.repeat_interleave(x, self.scale_factor, dim=2)
+        # 然后在宽度维度上复制
+        repeated_tensor = torch.repeat_interleave(repeated_tensor, self.scale_factor, dim=3)
 
-        return fused_out_reduced
+        # 确保输出张量的形状正确
+        assert repeated_tensor.size() == (batch_size, channels, new_height, new_width)
+
+        return repeated_tensor
+
+
+# class MFRU(nn.Module):
+#     """多尺度特征重构单元
+#     使用SRU来设计
+#     """
+#     def __init__(self, level):
+#         super(MFRU, self).__init__()
+#         self.level = level
+#         if level == "Large":
+#             self.convpooling256 = nn.Conv2d(256, 512, kernel_size=2, stride=2)
+#             self.convpooling512 = nn.Conv2d(512, 512, kernel_size=2, stride=2)
+#
+#         else:
+#             self.convscale256 = nn.Conv2d(512, 256, kernel_size=1, stride=1)
+#             self.CustomUpsample = CustomUpasample(scale_factor=4)
+#
+#     def forward(self, x):
+#         """
+#         Args:
+#             [20,  80]
+#         """
+#         if self.level == "Large":
+#             # 处理80*80的特征[40, 40]
+#             x_small = self.convpooling256(x[1])
+#             x_small_resized = self.convpooling512(x_small)
+#             level_weight_l = F.softmax(x_small_resized, dim=1)
+#             x_small_out = x[0] * level_weight_l
+#
+#             return x_small_out
+#
+#         else:
+#             # 处理20*20的特征
+#             x_large = self.convscale256(x[0])
+#             level_weight_s = F.softmax(x_large, dim=1)
+#             x_large = x_large*level_weight_s
+#             x_large_resize = self.CustomUpsample(x_large)
+#             x_large_out = x[1]+x_large_resize
+#
+#             return x_large_out
 
 
 class DFL(nn.Module):
