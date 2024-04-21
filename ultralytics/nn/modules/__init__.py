@@ -16,7 +16,7 @@ os.system(f'onnxsim {f} {f} && open {f}')
 from .block import (C1, C2, C3, C3TR, DFL, SPP, SPPF, Bottleneck, BottleneckCSP, C2f, C3Ghost, C3x, GhostBottleneck,
                     HGBlock, HGStem, Proto, RepC3, PconvBottleneck, PconvBottleneck_n, FasterC2f_N, FasterC2f, SCC2f,
                     SCConvBottleneck, SC_PW_C2f, SC_PW_Bottleneck, SC_Conv3_Bottleneck, SC_Conv3_C2f,
-                    Conv3_SC_Bottleneck, Conv3_SC_C2f, SC_PW_PW_Bottleneck, SC_PW_PW_C2f,AsffQuadrupLevel, AsffDoubLevel,
+                    Conv3_SC_Bottleneck, Conv3_SC_C2f, SC_PW_PW_Bottleneck, SC_PW_PW_C2f, AsffDoubLevel,
                     AsffTribeLevel, RFBblock, MFRU)
 
 from .conv import (CBAM, ChannelAttention, Concat, Conv, Conv2, ConvTranspose, DWConv, DWConvTranspose2d, Focus,
@@ -35,5 +35,5 @@ __all__ = ('Conv', 'Conv2', 'LightConv', 'RepConv', 'DWConv', 'DWConvTranspose2d
            'DeformableTransformerDecoder', 'DeformableTransformerDecoderLayer', 'MSDeformAttn', 'MLP', 'PConv',
            'PconvBottleneck', 'PconvBottleneck_n', 'FasterC2f_N', 'FasterC2f', "SCConv", "SCConvBottleneck", "SCC2f",
            "SC_PW_Bottleneck", "SC_PW_C2f", "SC_Conv3_Bottleneck", "SC_Conv3_C2f", "Conv3_SC_Bottleneck", "Conv3_SC_C2f",
-           "SC_PW_PW_C2f", "SC_PW_PW_Bottleneck", "FC","AsffQuadrupLevel", "AsffTribeLevel", "AsffDoubLevel", "AsffDetect", "RFBblock",
-           "MFRU", "MFRUs")
+           "SC_PW_PW_C2f", "SC_PW_PW_Bottleneck", "FC", "AsffTribeLevel", "AsffDoubLevel", "AsffDetect", "RFBblock",
+           "MFRU")

@@ -5,14 +5,14 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .conv import Conv, DWConv, GhostConv, LightConv, RepConv, PConv, SCConv, SRU
+from .conv import Conv, DWConv, GhostConv, LightConv, RepConv, PConv, SCConv
 from .transformer import TransformerBlock
 
 
 __all__ = ('DFL', 'HGBlock', 'HGStem', 'SPP', 'SPPF', 'C1', 'C2', 'C3', 'C2f', 'C3x', 'C3TR', 'C3Ghost',
            'GhostBottleneck', 'Bottleneck', 'BottleneckCSP', 'Proto', 'RepC3', 'PconvBottleneck', 'FasterC2f_N',
            'FasterC2f', 'PconvBottleneck_n', "SCConvBottleneck", "SCConv", "SCC2f", "SC_PW_Bottleneck", "SC_PW_C2f",
-           "SC_Conv3_C2f", "SC_Conv3_Bottleneck", "Conv3_SC_C2f", "Conv3_SC_Bottleneck", "AsffQuadrupLevel", "AsffTribeLevel",
+           "SC_Conv3_C2f", "SC_Conv3_Bottleneck", "Conv3_SC_C2f", "Conv3_SC_Bottleneck", "AsffTribeLevel",
            "AsffDoubLevel", "RFBblock", "MFRU")
 
 
@@ -119,95 +119,6 @@ class AsffTribeLevel(nn.Module):
         return out
 
 
-class AsffQuadrupLevel(nn.Module):
-    def __init__(self, level):
-        super(AsffQuadrupLevel, self).__init__()
-        self.level = level
-        self.dim = [512, 512, 256, 256]
-        self.inter_dim = self.dim[self.level]
-        # 0 是最深的feature
-        if level == 0:
-            self.stride_level_1 = nn.MaxPool2d(kernel_size=2, stride=2)
-            self.stride_level_2 = add_conv(256, self.inter_dim, 3, 2)
-            self.stride_level_3 = add_conv(256, self.inter_dim, 3, 2)
-            self.expand = add_conv(self.inter_dim, 512, 3, 1)
-
-        elif level == 1:
-            self.stride_level_2 = add_conv(256, self.inter_dim, 3, 2)
-            self.stride_level_3 = add_conv(256, self.inter_dim, 3, 2)
-            self.expand = add_conv(self.inter_dim, 512, 3, 1)
-
-        elif level == 2:
-            self.compress_level_0 = add_conv(512, self.inter_dim, 1, 1)
-            self.compress_level_1 = add_conv(512, self.inter_dim, 1, 1)
-            self.compress_level_3 = add_conv(256, self.inter_dim, 3, 2)
-            self.expand = add_conv(self.inter_dim, 256, 3, 1)
-
-        elif level == 3:
-            self.compress_level_0 = add_conv(512, self.inter_dim, 1, 1)
-            self.compress_level_1 = add_conv(512, self.inter_dim, 1, 1)
-            self.compress_level_2 = add_conv(256, self.inter_dim, 1, 1)
-            self.expand = add_conv(self.inter_dim, 256, 3, 1)
-
-        compress_c = 8
-
-        self.weight_level_0 = add_conv(self.inter_dim, compress_c, 1, 1)
-        self.weight_level_1 = add_conv(self.inter_dim, compress_c, 1, 1)
-        self.weight_level_2 = add_conv(self.inter_dim, compress_c, 1, 1)
-        self.weight_level_3 = add_conv(self.inter_dim, compress_c, 1, 1)
-
-        self.weight_levels = nn.Conv2d(compress_c * 4, 4, kernel_size=1, stride=1, padding=0)
-
-    def forward(self, x):
-        if self.level == 0:
-            level_0_resized = x[0]
-            level_1_resized = self.stride_level_1(x[1])
-            level_2_downsampled_inter = F.max_pool2d(x[2], 3, stride=2, padding=1)
-            level_2_resized = self.stride_level_2(level_2_downsampled_inter)
-            level_3_downsampled_inter = F.max_pool2d(F.max_pool2d(x[3], 3, stride=2, padding=1)
-                                                     , 3, stride=2, padding=1)
-            level_3_resized = self.weight_level_3(level_3_downsampled_inter)
-
-        elif self.level == 1:
-            level_0_resized = F.interpolate(x[0], scale_factor=2, mode='nearest')
-            level_1_resized = x[1]
-            level_2_resized = self.stride_level_2(x[2])
-            level_3_resized = self.stride_level_3(F.max_pool2d(x[3], 3, stride=2, padding=1))
-
-        elif self.level == 2:
-            level_0_compressed = self.compress_level_0(x[0])
-            level_0_resized = F.interpolate(level_0_compressed, scale_factor=4, mode='nearest')
-            level_1_compressed = self.compress_level_1(x[1])
-            level_1_resized = F.interpolate(level_1_compressed, scale_factor=2, mode='nearest')
-            level_2_resized = x[2]
-            level_3_resized = self.compress_level_3(x[3])
-
-        elif self.level == 3:
-            level_0_compressed = self.compress_level_0(x[0])
-            level_0_resized = F.interpolate(level_0_compressed, scale_factor=8, mode='nearest')
-            level_1_compressed = self.compress_level_1(x[1])
-            level_1_resized = F.interpolate(level_1_compressed, scale_factor=4, mode='nearest')
-            level_2_resized = F.interpolate(x[2], scale_factor=2, mode='nearest')
-            level_3_resized = x[3]
-
-        level_0_weight_v = self.weight_level_0(level_0_resized)
-        level_1_weight_v = self.weight_level_1(level_1_resized)
-        level_2_weight_v = self.weight_level_2(level_2_resized)
-        level_3_weight_v = self.weight_level_3(level_3_resized)
-        levels_weight_v = torch.cat((level_0_weight_v, level_1_weight_v, level_2_weight_v, level_3_weight_v), 1)
-        levels_weight = self.weight_levels(levels_weight_v)
-        levels_weight = F.softmax(levels_weight, dim=1)
-
-        fused_out_reduced = level_0_resized * levels_weight[:, 0:1, :, :] + \
-                            level_1_resized * levels_weight[:, 1:2, :, :] + \
-                            level_2_resized * levels_weight[:, 2:3, :, :] + \
-                            level_3_resized * levels_weight[:, 3:, :, :]
-
-        out = self.expand(fused_out_reduced)
-
-        return out
-
-
 class AsffDoubLevel(nn.Module):
     def __init__(self, level):
         super(AsffDoubLevel, self).__init__()
@@ -254,6 +165,56 @@ class AsffDoubLevel(nn.Module):
 
         return out
 
+
+# class MFRU(nn.Module):
+#     """多尺度特征重构单元
+#     使用SRU来设计
+#     """
+#     def __init__(self, level):
+#         super(MFRU, self).__init__()
+#         compress_c = 16
+#
+#         self.scconv = SCConv(512)
+#         self.scconv_s = SCConv(256)
+#
+#         self.pwconv0 = nn.Conv2d(512, 256, 1, 1, 0)
+#         self.pwconv1 = nn.Conv2d(512, 256, 1, 1, 0)
+#         self.pwconv2 = nn.Conv2d(256, 256, 1, 1, 0)
+#
+#         self.weight_level_0 = nn.Conv2d(256, compress_c, 1, 1, 0)
+#         self.weight_level_1 = nn.Conv2d(256, compress_c, 1, 1, 0)
+#         self.weight_level_2 = nn.Conv2d(256, compress_c, 1, 1, 0)
+#
+#         self.weight_levels = nn.Conv2d(compress_c * 3, 3, 1, 1, 0)
+#
+#     def forward(self, x):
+#         """
+#         Args:
+#             [20, 40 , 80]
+#         """
+#         level_0 = self.pwconv0(x[0])
+#         level_0_resized = self.scconv(F.interpolate(level_0, scale_factor=4, mode='nearest'))
+#
+#         level_1 = self.pwconv1(x[1])
+#         level_1_resized = self.scconv(F.interpolate(level_1, scale_factor=2, mode='nearest'))
+#
+#         level_2 = self.pwconv2(x[2])
+#         level_2_resized = self.scconv_s(level_2)
+#
+#         level_0_weight_v = self.weight_level_0(level_0_resized)
+#         level_1_weight_v = self.weight_level_1(level_1_resized)
+#         level_2_weight_v = self.weight_level_2(level_2_resized)
+#
+#         levels_weight_v = torch.cat((level_0_weight_v, level_1_weight_v, level_2_weight_v), 1)
+#         levels_weight = self.weight_levels(levels_weight_v)
+#
+#         levels_weight = F.softmax(levels_weight, dim=1)
+#
+#         fused_out_reduced = level_0_resized * levels_weight[:, 0:1, :, :] + \
+#                             level_1_resized * levels_weight[:, 1:2, :, :] + \
+#                             level_2_resized * levels_weight[:, 2:, :, :]
+#
+#         return fused_out_reduced
 
 class MFRU(nn.Module):
     """多尺度特征重构单元
@@ -309,72 +270,59 @@ class MFRU(nn.Module):
         out = self.scconv256(fused_out_reduced)
 
         return out
-
-
-class CustomUpasample(nn.Module):
-    def __init__(self, scale_factor):
-        super().__init__()
-        self.scale_factor = scale_factor
-
-    def forward(self, x):
-
-        # 获取输入张量的形状
-        batch_size, channels, height, width = x.size()
-
-        # 计算输出张量的形状
-        new_height = height * self.scale_factor
-        new_width = width * self.scale_factor
-
-        # 使用repeat_interleave复制特征图
-        # 首先在高度维度上复制
-        repeated_tensor = torch.repeat_interleave(x, self.scale_factor, dim=2)
-        # 然后在宽度维度上复制
-        repeated_tensor = torch.repeat_interleave(repeated_tensor, self.scale_factor, dim=3)
-
-        # 确保输出张量的形状正确
-        assert repeated_tensor.size() == (batch_size, channels, new_height, new_width)
-
-        return repeated_tensor
-
-
-# class MFRU(nn.Module):
+#
+# class MFRUL(nn.Module):
 #     """多尺度特征重构单元
 #     使用SRU来设计
 #     """
 #     def __init__(self, level):
-#         super(MFRU, self).__init__()
-#         self.level = level
-#         if level == "Large":
-#             self.convpooling256 = nn.Conv2d(256, 512, kernel_size=2, stride=2)
-#             self.convpooling512 = nn.Conv2d(512, 512, kernel_size=2, stride=2)
+#         super(MFRUL, self).__init__()
+#         compress_c = 16
 #
-#         else:
-#             self.convscale256 = nn.Conv2d(512, 256, kernel_size=1, stride=1)
-#             self.CustomUpsample = CustomUpasample(scale_factor=4)
+#         self.scconv = SCConv(128)
+#
+#         self.pwconv0 = nn.Conv2d(512, 128, 1, 1, 0)
+#         self.pwconv1 = nn.Conv2d(512, 128, 1, 1, 0)
+#         self.pwconv2 = nn.Conv2d(256, 128, 1, 1, 0)
+#
+#         self.weight_level_0 = nn.Conv2d(128, compress_c, 1, 1, 0)
+#         self.weight_level_1 = nn.Conv2d(128, compress_c, 1, 1, 0)
+#         self.weight_level_2 = nn.Conv2d(128, compress_c, 1, 1, 0)
+#
+#         self.weight_levels = nn.Conv2d(compress_c * 3, 3, 1, 1, 0)
 #
 #     def forward(self, x):
 #         """
 #         Args:
-#             [20,  80]
+#             [20, 40 , 80]
 #         """
-#         if self.level == "Large":
-#             # 处理80*80的特征[40, 40]
-#             x_small = self.convpooling256(x[1])
-#             x_small_resized = self.convpooling512(x_small)
-#             level_weight_l = F.softmax(x_small_resized, dim=1)
-#             x_small_out = x[0] * level_weight_l
+#         level_0 = self.pwconv0(x[0])
+#         level_0_resized = self.scconv(F.interpolate(level_0, scale_factor=8, mode='nearest'))
 #
-#             return x_small_out
+#         level_1 = self.pwconv1(x[1])
+#         level_1_resized = self.scconv(F.interpolate(level_1, scale_factor=4, mode='nearest'))
 #
-#         else:
-#             # 处理20*20的特征
-#             x_large = self.convscale256(x[0])
-#             level_weight_s = F.softmax(x_large, dim=1)
-#             x_large = x_large*level_weight_s
-#             x_large_resize = self.CustomUpsample(x_large)
-#             x_large_out = x[1]+x_large_resize
+#         level_2 = self.pwconv2(x[2])
+#         level_2_resized = self.scconv(F.interpolate(level_2, scale_factor=2, mode="nearest"))
 #
-#             return x_large_out
+#         level_0_weight_v = self.weight_level_0(level_0_resized)
+#         level_1_weight_v = self.weight_level_1(level_1_resized)
+#         level_2_weight_v = self.weight_level_2(level_2_resized)
+#
+#         levels_weight_v = torch.cat((level_0_weight_v, level_1_weight_v, level_2_weight_v), 1)
+#         levels_weight = self.weight_levels(levels_weight_v)
+#         # 通道维
+#         levels_weight = F.softmax(levels_weight, dim=1)
+#
+#         fused_out_reduced = level_0_resized * levels_weight[:, 0:1, :, :] + \
+#                             level_1_resized * levels_weight[:, 1:2, :, :] + \
+#                             level_2_resized * levels_weight[:, 2:, :, :]
+#         # [80, 80, 256]
+#         out = fused_out_reduced
+#
+#         return out
+#
+
 
 
 class DFL(nn.Module):
@@ -542,7 +490,6 @@ class C2f(nn.Module):
 
     def forward(self, x):
         """Forward pass through C2f layer."""
-        #【1, 2, 3, 4, 5】
         y = list(self.cv1(x).chunk(2, 1))
         y.extend(m(y[-1]) for m in self.m)
         return self.cv2(torch.cat(y, 1))

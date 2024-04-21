@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.init import constant_, xavier_uniform_
 from ultralytics.utils.tal import dist2bbox, make_anchors
-from .block import DFL, Proto, SCConv
+from .block import DFL, Proto, SCConv, RFBblock
 from .conv import Conv, SRU, CRU, FC
 from .transformer import MLP, DeformableTransformerDecoder, DeformableTransformerDecoderLayer
 from .utils import bias_init_with_prob, linear_init_
@@ -117,6 +117,7 @@ class AsffDetect(nn.Module):
         self.reg_max = 16  # DFL channels (ch[0] // 16 to scale4/8/12/16/20 for n/s/m/l/x)
         self.no = nc + self.reg_max * 4  # number of outputs per anchor
         self.stride = torch.zeros(self.nl)  # strides computed during build
+
         self.cv2 = nn.ModuleList(
             nn.Sequential(nn.Conv2d(x, 4 * self.reg_max, 1)) for x in ch)
         self.cv3 = nn.ModuleList(

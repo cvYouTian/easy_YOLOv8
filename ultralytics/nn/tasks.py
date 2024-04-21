@@ -8,7 +8,7 @@ from ultralytics.nn.modules import (AIFI, C1, C2, C3, C3TR, SPP, SPPF, Bottlenec
                                     Focus, GhostBottleneck, GhostConv, HGBlock, HGStem, Pose, RepC3, RepConv,
                                     RTDETRDecoder, Segment, PConv, FasterC2f_N, FasterC2f, PconvBottleneck,
                                     PconvBottleneck_n, SCConv, SCConvBottleneck, SCC2f, SC_PW_Bottleneck, SC_PW_C2f,
-                                    SC_Conv3_Bottleneck, SC_Conv3_C2f, Conv3_SC_C2f, Conv3_SC_Bottleneck, AsffQuadrupLevel,
+                                    SC_Conv3_Bottleneck, SC_Conv3_C2f, Conv3_SC_C2f, Conv3_SC_Bottleneck,
                                     AsffTribeLevel, AsffDoubLevel, AsffDetect, RFBblock, MFRU)
 
 from ultralytics.utils import DEFAULT_CFG_DICT, DEFAULT_CFG_KEYS, LOGGER, colorstr, emojis, yaml_load
@@ -566,12 +566,13 @@ def torch_safe_load(weight):
     Args:
         weight (str): The file path of the PyTorch model.
 
-    Returns:
+    Reurns:
         (dict): The loaded PyTorch model.
     """
     from ultralytics.utils.downloads import attempt_download_asset
-
+    # check if suffix of weight is .pt
     check_suffix(file=weight, suffix='.pt')
+    # 先尝试在本地在本地搜索，如果没有去网上搜索 return str
     file = attempt_download_asset(weight)  # search online if missing locally
     try:
         with temporary_modules({
@@ -640,17 +641,26 @@ def attempt_load_weights(weights, device=None, inplace=True, fuse=False):
 # 加载预训练权重
 def attempt_load_one_weight(weight, device=None, inplace=True, fuse=False):
     """Loads a single model weights."""
+    # return torch.load(weight) and weight 自己
     ckpt, weight = torch_safe_load(weight)  # load ckpt
+    # 将文件的超参数和将ckpt的训练参数拿到。并整合到一起。
     args = {**DEFAULT_CFG_DICT, **(ckpt.get('train_args', {}))}  # combine model and default args, preferring model args
+    # print(args)
+    # 把model拿到并加载到设备上转化成float。
     model = (ckpt.get('ema') or ckpt['model']).to(device).float()  # FP32 model
 
     # Model compatibility updates
+    # 获取权重中的中的训练参数
     model.args = {k: v for k, v in args.items() if k in DEFAULT_CFG_KEYS}  # attach args to model
+    # print(model.args)
+    # 拿到weight的路径
     model.pt_path = weight  # attach *.pt file path to model
+    # 拿到任务的名字，比如detect
     model.task = guess_model_task(model)
+
     if not hasattr(model, 'stride'):
         model.stride = torch.tensor([32.])
-
+    # TODO：是否是Rep
     model = model.fuse().eval() if fuse and hasattr(model, 'fuse') else model.eval()  # model in eval mode
 
     # Module compatibility updates
@@ -754,10 +764,10 @@ def parse_model(d, ch, verbose=True):
             c2 = sum(ch[x] for x in f)
         elif m is MFRU:
             c2 = 256
-        elif m in (AsffDoubLevel, AsffTribeLevel, AsffQuadrupLevel):
+        elif m in (AsffDoubLevel, AsffTribeLevel):
             if m is AsffDoubLevel:
                 c2 = 512 if args[0] == 0 else 256
-            elif m is AsffTribeLevel or AsffQuadrupLevel:
+            elif m is AsffTribeLevel:
                 c2 = 512 if args[0] in (0, 1) else 256
         elif m in (Detect, Segment, Pose, AsffDetect):
             args.append([ch[x] for x in f])

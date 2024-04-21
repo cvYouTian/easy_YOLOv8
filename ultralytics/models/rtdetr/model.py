@@ -22,14 +22,18 @@ from .val import RTDETRValidator
 class RTDETR:
 
     def __init__(self, model='rtdetr-l.pt') -> None:
+        # 输入的模型必须开始yaml的者是pt的
         if model and not model.endswith('.pt') and not model.endswith('.yaml'):
             raise NotImplementedError('RT-DETR only supports creating from pt file or yaml file.')
         # Load or create new YOLO model
         self.predictor = None
         self.ckpt = None
+        #
         suffix = Path(model).suffix
+        # 如果是yaml则是训练sctatch
         if suffix == '.yaml':
             self._new(model)
+        # 否则
         else:
             self._load(model)
 
@@ -45,8 +49,11 @@ class RTDETR:
 
     @smart_inference_mode()
     def _load(self, weights: str):
+        # model这里几经有了训练的参数了，ckpt就是torch.load家在的内容
         self.model, self.ckpt = attempt_load_one_weight(weights)
+
         self.model.args = DEFAULT_CFG_DICT  # attach args to model
+        print(self.model.args)
         self.task = self.model.args['task']
 
     @smart_inference_mode()
@@ -115,6 +122,7 @@ class RTDETR:
     def val(self, **kwargs):
         """Run validation given dataset."""
         overrides = dict(task='detect', mode='val')
+        # 这里可是传入kwargs参数，
         overrides.update(kwargs)  # prefer kwargs
         args = get_cfg(cfg=DEFAULT_CFG, overrides=overrides)
         args.imgsz = check_imgsz(args.imgsz, max_dim=1)
