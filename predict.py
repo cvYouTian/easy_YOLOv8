@@ -10,5 +10,6 @@ class MyModule(nn.Module):
             x = self.linears[i // 2](x) + l(x)
         return x
 
-a = MyModule()
+model = MyModule()
+
 print(a)

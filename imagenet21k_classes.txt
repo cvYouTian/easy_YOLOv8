@@ -1,0 +1,6 @@
+speedboat
+motorboat
+surfing
+airplane
+seabird
+missile

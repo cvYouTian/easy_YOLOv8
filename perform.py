@@ -238,7 +238,7 @@ class VOCprocess:
 def predict():
     # Load a model
     # model = YOLO('yolov8n.pt')  # 加载官方的模型权重作评估
-    model = YOLO("/home/youtian/Documents/pro/pyCode/easy_YOLOv8/runs/detect/YOLOv8l/weights/best.pt")  # 加载自定义的模型权重作评估
+    model = YOLO("")  # 加载自定义的模型权重作评估
     metrics = model.val()  # 不需要传参，这里定义的模型会自动在训练的数据集上作评估
     # metrics = model.val(data="...")  # 在一个新的数据集上做评估，传绝对路径
 

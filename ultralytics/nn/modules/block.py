@@ -13,7 +13,7 @@ __all__ = ('DFL', 'HGBlock', 'HGStem', 'SPP', 'SPPF', 'C1', 'C2', 'C3', 'C2f', '
            'GhostBottleneck', 'Bottleneck', 'BottleneckCSP', 'Proto', 'RepC3', 'PconvBottleneck', 'FasterC2f_N',
            'FasterC2f', 'PconvBottleneck_n', "SCConvBottleneck", "SCConv", "SCC2f", "SC_PW_Bottleneck", "SC_PW_C2f",
            "SC_Conv3_C2f", "SC_Conv3_Bottleneck", "Conv3_SC_C2f", "Conv3_SC_Bottleneck", "AsffQuadrupLevel", "AsffTribeLevel",
-           "AsffDoubLevel", "RFBblock", "MFRU", "MFRUs")
+           "AsffDoubLevel", "RFBblock", "MFRU")
 
 
 def autopad(k, p=None, d=1):

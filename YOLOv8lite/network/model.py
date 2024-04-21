@@ -135,8 +135,9 @@ class DFL(nn.Module):
     def forward(self, x):
         # [1, 64, 8400]
         b, c, a = x.shape
-        # 第一次的定位信息纬度变化， 这里是将坐标信息在前， reg_max信息在后
+        # 第一次的定位信息纬度变化， 这里是16维在前， 4点信息在后
         x = x.view(b, 4, self.c1, a).transpose(2, 1)
+        print(x.softmax(1))
         # 先在16个纬度上实现softmax，再使用单层感知机（16, 1）实现16个只
 
         # [1, 4, 8400]
@@ -225,6 +226,7 @@ class Detect(nn.Module):
         # cls这里使用的是sigmiod函数，做了一下归一化 -> [1, 84, 8400]
         y = torch.cat((dbox, cls.sigmoid()), 1)
 
+        # y:[1, 4+80, 8400] x:[[1, 64+80, 80, 80], [1, 64+80, 40, 40], [1, 64+80, 20, 20]]
         return y, x
 
 
@@ -292,7 +294,7 @@ class YOLOv8l(nn.Module):
         x8 = self.c2f_8(p5)
         sppf = self.sppf_9(x8)
 
-        # neck
+        # head
         x10 = self.upsample(sppf)
         x11 = torch.cat((x6, x10), 1)
         x12 = self.c2f_12(x11)
@@ -315,6 +317,7 @@ class YOLOv8l(nn.Module):
 if __name__ == '__main__':
     image_path = "/home/youtian/Pictures/Screenshots/bird.png"
     net = YOLOv8l(80, 16)
+
     net.to("cuda:0")
     net.eval()
     transform = transforms.Compose([transforms.Resize((640, 640)),
@@ -331,7 +334,7 @@ if __name__ == '__main__':
         # tensor: [1, 84, 8400], list[tensor]: [x15, x18, x21]
         out = net(batch_input)
 
-    print(out.module)
+    print(out)
 
     # feature_visualization(out, "nn.Conv2d, nn.Conv2d, nn.Conv2d", 5)
     # summary(net, input_size=(3, 640, 640))
