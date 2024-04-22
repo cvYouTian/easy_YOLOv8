@@ -2,11 +2,12 @@ import shutil
 import sys
 import os
 import xml.etree.ElementTree as ET
+import torch
 from ultralytics.utils.downloads import download
 from pathlib import Path
 from typing import Union
 import cv2
-# import netron
+import netron
 import time
 from tqdm import tqdm
 from ultralytics import YOLO, RTDETR
@@ -43,8 +44,9 @@ def onnx(path: Union[str, Path] = "/home/youtian/Documents/pro/pyCode/easy_YOLOv
 
 
 def test_img():
-    model = YOLO("/home/youtian/Documents/pro/pyCode/easy_YOLOv8/runs/detect/YOLOv8l/weights/best.pt")
-    img = cv2.imread("/home/youtian/Documents/pro/pyCode/easy_YOLOv8/bus.jpg")
+    # print(torch.load("/home/youtian/Documents/pro/pyCode/easy_YOLOv8/runs/detect/RFB+ASFF/weights/best.pt"))
+    model = YOLO("/home/youtian/Documents/pro/pyCode/easy_YOLOv8/runs/detect/RFB+ASFF/weights/best.pt")
+    img = cv2.imread("/home/youtian/Documents/pro/pyCode/easy_YOLOv8/images/16182.jpg")
     res = model(img)
     ann = res[0].plot()
     while True:
@@ -54,16 +56,11 @@ def test_img():
     cur_path = sys.path[0]
     print(cur_path, sys.path)
 
-    if os.path.exists(cur_path):
-        cv2.imwrite(cur_path + "out2.jpg", ann)
-    else:
-        os.mkdir(cur_path)
-        cv2.imwrite(cur_path + "out2.jpg", ann)
+    cv2.imwrite(cur_path + os.sep + "out2.jpg", ann)
 
 
 def test_video():
     model = YOLO("/home/youtian/Documents/pro/pyCode/easy_YOLOv8/yolov8x.pt")
-
     path = Path("/home/youtian/Documents/pro/pyCode/datasets/shitang.mp4")
     cap = cv2.VideoCapture(str(path))
 
@@ -95,13 +92,19 @@ def test_video():
     out.release()
 
 
-def test_folders(model_path: str = "/home/youtian/Documents/pro/pyCode/easy_YOLOv8/runs/detect/YOLOv8l/weights/best.pt",
-                 srcpath: str = "/home/youtian/Documents/pro/project/2023海上高速目标检测/HSTS6/images/val") -> None:
+def test_folders(model_path: str = "/home/youtian/Documents/pro/pyCode/easy_YOLOv8/runs/detect/YOLOv5+CHST6/weights/best.pt",
+                 srcpath: str = "/home/youtian/Documents/pro/project/2023海上高速目标检测/HSTS6/images/val",
+                 mothed: str="yolo") -> None:
     # 加载权重model
-    model = YOLO(model_path)
+    if not isinstance(model_path, Path):
+        model_path = Path(model_path)
+    if mothed.lower() == "rtdetr":
+        model = RTDETR(model_path)
+    else:
+        model = YOLO(model_path)
 
     src = Path(srcpath) if not isinstance(srcpath, Path) else srcpath
-    dst_folder = Path(sys.path[0]) / Path("val_test_pic")
+    dst_folder = Path(sys.path[0]) / Path(f"{model_path.parts[-3]}_val_test_pic")
     if dst_folder.exists():
         shutil.rmtree(dst_folder) if any(dst_folder.iterdir()) else dst_folder.rmdir()
     dst_folder.mkdir(exist_ok=True, parents=True)
@@ -112,10 +115,10 @@ def test_folders(model_path: str = "/home/youtian/Documents/pro/pyCode/easy_YOLO
         end_timer = time.time()
         timer += end_timer - start_timer
 
-        # img = res[0].plot()
+        img = res[0].plot()
         # 把测试的图片提前resize成相同的size
-        # ann = cv2.resize(img, (640, 640))
-        # cv2.imwrite(str(Path(dst_folder) / Path(img_path.name)), ann)
+        ann = cv2.resize(img, (640, 640))
+        cv2.imwrite(str(Path(dst_folder) / Path(img_path.name)), ann)
 
     # 计算每一张的推理时间
     print("test time : %f" % (timer / len(list(src.iterdir()))))
@@ -251,9 +254,9 @@ def predict():
 if __name__ == "__main__":
     # loss_compara_pic("./loss_csv")
     # calc_instance()
-    train()
+    # train()
     # test_video()
-    # test_folders()
+    test_folders()
     # test_img()
     # tracker()
     # onnx()

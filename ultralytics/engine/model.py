@@ -212,7 +212,7 @@ class YOLO:
             x in sys.argv for x in ('predict', 'track', 'mode=predict', 'mode=track'))
         overrides = self.overrides.copy()
         # 置信度
-        overrides['conf'] = 0.25
+        overrides['conf'] = 0.4
         overrides.update(kwargs)  # prefer kwargs
         overrides['mode'] = kwargs.get('mode', 'predict')
         assert overrides['mode'] in ['track', 'predict']
