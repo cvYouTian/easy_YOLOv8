@@ -166,19 +166,6 @@ def tracker():
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
 
-    # # # or a segmentation model .i.e yolov8n-seg.pt
-    # # model.track(
-    # #     source="vid.mp4",
-    # #     stream=True,
-    # #     tracker="botsort.yaml",  # or 'bytetrack.yaml'
-    # #     show=True,
-    # # )
-
-    # for result in model.track(source="vid.mp4"):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
-    #     print(
-    #         result.boxes.id.cpu().numpy().astype(int)
-    #     )
-
 
 class VOCprocess:
     def __init__(self):
@@ -251,33 +238,51 @@ def videopin():
     final_clip.write_videofile('c.mp4')  # 保存视频
 
 
-def flops_para():
-    # pa = Path("/home/youtian/Documents/pro/pyCode/ultralytics-YOLOv8/yolov8l.pt")
-    # pa = Path("/home/youtian/Documents/pro/pyCode/YOLOv7-lite/yolov7.pt")
-    # model = torch.load(pa)
-    # print(model.models)
+def check_GPU():
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    return device
+
+
+def Para4pt(model):
+    # 一定要找到权重中的model，才可以后续进行parameter的计算
+    # YOLOv8
+    # model = model["model"].model
+    # YOLOv7
     model = model["model"].model
+
     total_params = sum(p.numel() for p in model.parameters())
     print(f'{total_params:,} total parameters.')
-    print(f'{total_params / (1024 * 1024):.2f}M total parameters.')
+    # print(f'{total_params / (1024 * 1024):.2f}M total parameters.')
 
-    # pa = Path("/home/youtian/Documents/pro/pyCode/ultralytics-YOLOv8/yolov8l.pt")
-    #
-    # model = YOLO(str(pa))
-    # model.info()
-    # model.fuse()
 
-    # model = torch.load(pa)
-    # print(model.info())
-    # model = model["model"].model
-    # # print([i for i in model.parameters()])
-    # model.eval()
-    # # 假设模型期望的输入是3个通道的224x224图像
-    # input_tensor = torch.randn(1, 3, 640, 640).to(torch.float16)
-    # macs, params = profile(model, inputs=(input_tensor,))
-    # print('macs:{}'.format(macs))
-    # print('params:{}'.format(params))
+def FLOPs_Para4pt(model):
+    from thop import profile
+    """
+    根据pytorch的pt文件来计算模型的FLOPs和参数量，use thop
+    Args:
+        model:pytorch加载好的模型文件
+
+    Returns:None
+    """
+    # 获得模型部分
+    model = model["model"].model
+    print(model)
+    # 假设模型期望的输入是3个通道的图像
+    input_tensor = torch.randn(1, 3, 640, 640)
+
+    # 判断模型是否可以使用的GPU，如果模型在GPU上运行，需要将输入数据也发送到GPU
+    model.to(check_GPU())
+    input_tensor = input_tensor.to(check_GPU())
+
+    # convert model and input into half type
+    model = model.half()
+    input_tensor = input_tensor.half()
+
+    # 调用profile函数计算FLOPs和参数量
+    flops, params = profile(model, inputs=(input_tensor,))
+    print('flops:{}'.format(flops))
+    print('params:{}'.format(params))
 
 
 def predict():
@@ -294,6 +299,12 @@ def predict():
 
 
 if __name__ == "__main__":
+    # pa = Path("/home/youtian/Documents/pro/pyCode/YOLOv7-lite/yolov7.pt")
+    pa = Path("/home/youtian/Documents/pro/pyCode/ultralytics-YOLOv8/yolov8l.pt")
+    model = torch.load(pa)
+
+    # Para4pt(model)
+    FLOPs_Para4pt(model)
     # loss_compara_pic("./loss_csv")
     # calc_instance()
     # train()
@@ -303,4 +314,3 @@ if __name__ == "__main__":
     # tracker()
     # onnx()
     # predict()
-    flops_para()
