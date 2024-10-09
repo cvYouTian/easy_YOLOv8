@@ -2,12 +2,14 @@
 """
 Model validation metrics
 """
+import json
 import math
 import warnings
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import torch
 
 from ultralytics.utils import LOGGER, SimpleClass, TryExcept, plt_settings
@@ -285,6 +287,7 @@ class ConfusionMatrix:
         sn.set(font_scale=1.0 if nc < 50 else 0.8)  # for label size
         labels = (0 < nn < 99) and (nn == nc)  # apply names to ticklabels
         ticklabels = (list(names) + ['background']) if labels else 'auto'
+
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')  # suppress empty matrix RuntimeWarning: All-NaN slice encountered
             sn.heatmap(array,
@@ -323,31 +326,68 @@ def smooth(y, f=0.05):
     yp = np.concatenate((p * y[0], y, p * y[-1]), 0)  # y padded
     return np.convolve(yp, np.ones(nf) / nf, mode='valid')  # y-smoothed
 
+# 原始的map
+# @plt_settings()
+# def plot_pr_curve(px, py, ap, save_dir=Path('pr_curve.png'), names=(), on_plot=None):
+#     """Plots a precision-recall curve."""
+#     # 其中ax表示图形中的坐标轴的设置。
+#     fig, ax = plt.subplots(1, 1, figsize=(9, 6), tight_layout=True)
+#     py = np.stack(py, axis=1)
+#
+#     if 0 < len(names) < 21:  # display per-class legend if < 21 classes
+#         for i, y in enumerate(py.T):
+#             ax.plot(px, y, linewidth=1, label=f'{names[i]} {ap[i, 0]:.3f}')  # plot(recall, precision)
+#     else:
+#         ax.plot(px, py, linewidth=1, color='grey')  # plot(recall, precision)
+#
+#     ax.plot(px, py.mean(1), linewidth=3, color='blue', label='all classes %.3f mAP@0.5' % ap[:, 0].mean())
+#     ax.set_xlabel('Recall')
+#     ax.set_ylabel('Precision')
+#     ax.set_xlim(0, 1)
+#     ax.set_ylim(0, 1)
+#     ax.legend(bbox_to_anchor=(1.04, 1), loc='upper left')
+#     ax.set_title('Precision-Recall Curve')
+#     fig.savefig(save_dir, dpi=250)
+#     plt.close(fig)
+#     if on_plot:
+#         on_plot(save_dir)
+
 
 @plt_settings()
 def plot_pr_curve(px, py, ap, save_dir=Path('pr_curve.png'), names=(), on_plot=None):
-    """Plots a precision-recall curve."""
-    fig, ax = plt.subplots(1, 1, figsize=(9, 6), tight_layout=True)
-    py = np.stack(py, axis=1)
+    """Plots a precision-recall curve for each class in a 2x3 grid of subplots."""
+    # Number of classes
+    num_classes = len(names)
 
-    if 0 < len(names) < 21:  # display per-class legend if < 21 classes
-        for i, y in enumerate(py.T):
-            ax.plot(px, y, linewidth=1, label=f'{names[i]} {ap[i, 0]:.3f}')  # plot(recall, precision)
-    else:
-        ax.plot(px, py, linewidth=1, color='grey')  # plot(recall, precision)
+    # Create a figure with a 2x3 grid of subplot
+    fig, axs = plt.subplots(2, 3, figsize=(12, 8), tight_layout=True)  # 2 rows, 3 columns
 
-    ax.plot(px, py.mean(1), linewidth=3, color='blue', label='all classes %.3f mAP@0.5' % ap[:, 0].mean())
-    ax.set_xlabel('Recall')
-    ax.set_ylabel('Precision')
-    ax.set_xlim(0, 1)
-    ax.set_ylim(0, 1)
-    ax.legend(bbox_to_anchor=(1.04, 1), loc='upper left')
-    ax.set_title('Precision-Recall Curve')
+    # If the number of classes is less than 6, fill the remaining subplots with empty plots
+    if num_classes < 6:
+        for i in range(6 - num_classes):
+            axs[1, i].axis('off')
+            if num_classes == 5:  # Move the last class to the bottom center if there are 5 classes
+                axs[1, i] = axs[0, 2]
+
+    # Iterate over classes and plot each PR curve in a separate subplot
+    for i, (name, ax) in enumerate(zip(names, axs.flatten())):
+        ax.plot(px, py[i], linewidth=2, label=f'{names[i]} AP:{ap[i, 0]:.3f}')
+        ax.fill_between(px, py[i], alpha=0.3)
+        ax.set_xlabel('Recall')
+        ax.set_ylabel('Precision')
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.legend(loc='lower right')
+        ax.set_title(f'Precision-Recall Curve for {names[i]}')
+
+    # Adjust the layout and save the figure
+    fig.tight_layout()
     fig.savefig(save_dir, dpi=250)
     plt.close(fig)
+
+    # If an on_plot callback is provided, call it
     if on_plot:
         on_plot(save_dir)
-
 
 @plt_settings()
 def plot_mc_curve(px, py, save_dir=Path('mc_curve.png'), names=(), xlabel='Confidence', ylabel='Metric', on_plot=None):
@@ -411,6 +451,7 @@ def ap_per_class(tp,
                  conf,
                  pred_cls,
                  target_cls,
+                 # plot=False,
                  plot=False,
                  on_plot=None,
                  save_dir=Path(),
@@ -478,6 +519,8 @@ def ap_per_class(tp,
         for j in range(tp.shape[1]):
             ap[ci, j], mpre, mrec = compute_ap(recall[:, j], precision[:, j])
             if plot and j == 0:
+                # df = pd.DataFrame(recall[:, j], precision[:, j])
+                # df.to_csv("data.csv", index=False)
                 py.append(np.interp(px, mrec, mpre))  # precision at mAP@0.5
 
     # Compute F1 (harmonic mean of precision and recall)
@@ -485,6 +528,19 @@ def ap_per_class(tp,
     names = [v for k, v in names.items() if k in unique_classes]  # list: only classes that have data
     names = dict(enumerate(names))  # to dict
     if plot:
+        # # 将 NumPy 数组转换为列表
+        # px_list = px.tolist()
+        # py_list = [py_class.tolist() for py_class in py]
+        # ap_list = ap.tolist()
+        #
+        # # 创建一个包含转换后数据的字典
+        # info = dict(px=px_list, py=py_list, ap=ap_list, names=names)
+        #
+        # # 将字典写入 JSON 文件
+        # with open("info.json", 'w') as f:
+        #     json_str = json.dumps(info)
+        #     f.write(json_str)
+
         plot_pr_curve(px, py, ap, save_dir / f'{prefix}PR_curve.png', names, on_plot=on_plot)
         plot_mc_curve(px, f1, save_dir / f'{prefix}F1_curve.png', names, ylabel='F1', on_plot=on_plot)
         plot_mc_curve(px, p, save_dir / f'{prefix}P_curve.png', names, ylabel='Precision', on_plot=on_plot)
@@ -677,6 +733,7 @@ class DetMetrics(SimpleClass):
                                pred_cls,
                                target_cls,
                                plot=self.plot,
+                               # plot=True,
                                save_dir=self.save_dir,
                                names=self.names,
                                on_plot=self.on_plot)[2:]

@@ -92,14 +92,15 @@ def test_video():
     out.release()
 
 
-def test_folders(model_path: str = "/home/youtian/Documents/pro/pyCode/easy_YOLOv8/runs/detect/YOLOv5+CHST6/weights/best.pt",
-                 srcpath: str = "/home/youtian/Documents/pro/project/2023海上高速目标检测/HSTS6/images/val",
-                 mothed: str="yolo") -> None:
+def test_folders(model_path: str = "/home/youtian/Documents/pro/pyCode/easy_YOLOv8/runs/detect/YOLOv8l+CHST6+32/weights/best.pt",
+                 srcpath: str = "/home/youtian/Documents/pro/pyCode/datasets/HSTS6/CHTS6/images/val",
+                 mothed: str="YOLO") -> None:
+
     # 加载权重model
     if not isinstance(model_path, Path):
         model_path = Path(model_path)
     if mothed.lower() == "rtdetr":
-        model = RTDETR(model_path)
+        model = RTDETR(str(model_path))
     else:
         model = YOLO(model_path)
 
@@ -164,6 +165,7 @@ def tracker():
             out.write(frame)
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
+
     # # # or a segmentation model .i.e yolov8n-seg.pt
     # # model.track(
     # #     source="vid.mp4",
@@ -238,17 +240,57 @@ class VOCprocess:
                 self.convert_label(self.path, lb_path, year, id)  # convert labels to YOLO format
 
 
+def videopin():
+    from moviepy.editor import VideoFileClip, clips_array
+
+    clip1 = VideoFileClip('our.mp4')  # 读入视频
+    clip2 = VideoFileClip('our1.mp4')
+    # final_clip = clips_array([[clip1], [clip2]])  # 上下拼接
+    final_clip = clips_array([[clip1, clip2]])#左右拼接
+
+    final_clip.write_videofile('c.mp4')  # 保存视频
+
+
+def flops_para():
+    # pa = Path("/home/youtian/Documents/pro/pyCode/ultralytics-YOLOv8/yolov8l.pt")
+    # pa = Path("/home/youtian/Documents/pro/pyCode/YOLOv7-lite/yolov7.pt")
+    # model = torch.load(pa)
+    # print(model.models)
+
+    model = model["model"].model
+    total_params = sum(p.numel() for p in model.parameters())
+    print(f'{total_params:,} total parameters.')
+    print(f'{total_params / (1024 * 1024):.2f}M total parameters.')
+
+    # pa = Path("/home/youtian/Documents/pro/pyCode/ultralytics-YOLOv8/yolov8l.pt")
+    #
+    # model = YOLO(str(pa))
+    # model.info()
+    # model.fuse()
+
+    # model = torch.load(pa)
+    # print(model.info())
+    # model = model["model"].model
+    # # print([i for i in model.parameters()])
+    # model.eval()
+    # # 假设模型期望的输入是3个通道的224x224图像
+    # input_tensor = torch.randn(1, 3, 640, 640).to(torch.float16)
+    # macs, params = profile(model, inputs=(input_tensor,))
+    # print('macs:{}'.format(macs))
+    # print('params:{}'.format(params))
+
+
 def predict():
     # Load a model
     # model = YOLO('yolov8n.pt')  # 加载官方的模型权重作评估
-    model = YOLO("")  # 加载自定义的模型权重作评估
-    metrics = model.val()  # 不需要传参，这里定义的模型会自动在训练的数据集上作评估
-    # metrics = model.val(data="...")  # 在一个新的数据集上做评估，传绝对路径
-
-    # print(metrics.box.map)  # map50-95
-    # print(metrics.box.map50)  # map50
-    # print(metrics.box.map75)  # map75
-    # print(metrics.box.maps)  # 包含每个类别的map50-95列表
+    model = YOLO("/home/youtian/Documents/pro/pyCode/easy_YOLOv8/runs/detect/RFB+ASFF/weights/best.pt")  # 加载自定义的模型权重作评估
+    # metrics = model.val()  # 不需要传参，这里定义的模型会自动在训练的数据集上作评估
+    metrics = model.val(data="/home/youtian/Documents/pro/pyCode/easy_YOLOv8/ultralytics/cfg/datasets/HSTS6.yaml")
+    # 在一个新的数据集上做评估，传绝对路径
+    print(metrics.box.map)  # map50-95
+    print(metrics.box.map50)  # map50
+    print(metrics.box.map75)  # map75
+    print(metrics.box.maps)  # 包含每个类别的map50-95列表
 
 
 if __name__ == "__main__":
@@ -256,8 +298,9 @@ if __name__ == "__main__":
     # calc_instance()
     # train()
     # test_video()
-    test_folders()
+    # test_folders()
     # test_img()
     # tracker()
     # onnx()
     # predict()
+    flops_para()

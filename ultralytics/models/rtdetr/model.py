@@ -2,7 +2,6 @@
 """
 RT-DETR model interface
 """
-
 from pathlib import Path
 
 import torch.nn as nn
@@ -22,6 +21,7 @@ from .val import RTDETRValidator
 class RTDETR:
 
     def __init__(self, model='rtdetr-l.pt') -> None:
+
         # 输入的模型必须开始yaml的者是pt的
         if model and not model.endswith('.pt') and not model.endswith('.yaml'):
             raise NotImplementedError('RT-DETR only supports creating from pt file or yaml file.')

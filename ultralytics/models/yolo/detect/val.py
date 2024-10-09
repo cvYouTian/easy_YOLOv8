@@ -260,8 +260,10 @@ class DetectionValidator(BaseValidator):
 
 def val(cfg=DEFAULT_CFG, use_python=False):
     """Validate trained YOLO model on validation dataset."""
-    model = cfg.model or 'yolov8n.pt'
-    data = cfg.data or 'coco128.yaml'
+    # model = cfg.model or 'yolov8n.pt'
+    model = cfg.model or "/home/youtian/Documents/pro/pyCode/easy_YOLOv8/runs/detect/RFB+ASFF/weights/best.pt"
+    # data = cfg.data or 'coco128.yaml'
+    data = cfg.data or "/home/youtian/Documents/pro/pyCode/easy_YOLOv8/ultralytics/cfg/datasets/HSTS6.yaml"
 
     args = dict(model=model, data=data)
     if use_python:
@@ -273,4 +275,4 @@ def val(cfg=DEFAULT_CFG, use_python=False):
 
 
 if __name__ == '__main__':
-    val()
+    val(use_python=True)

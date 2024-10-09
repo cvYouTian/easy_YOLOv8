@@ -262,6 +262,7 @@ class YOLO:
         """
         overrides = self.overrides.copy()
         overrides['rect'] = True  # rect batches as default
+        # 使用自定义的参数来覆盖的配置
         overrides.update(kwargs)
         overrides['mode'] = 'val'
         args = get_cfg(cfg=DEFAULT_CFG, overrides=overrides)
