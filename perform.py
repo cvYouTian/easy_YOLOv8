@@ -3,6 +3,7 @@ import sys
 import os
 import xml.etree.ElementTree as ET
 import torch
+from ultralytics.nn.modules import Detect, Segment, AsffDetect
 from ultralytics.utils.downloads import download
 from pathlib import Path
 from typing import Union
@@ -256,7 +257,7 @@ def Para4pt(model):
     # print(f'{total_params / (1024 * 1024):.2f}M total parameters.')
 
 
-def FLOPs_Para4pt(model):
+def FLOPs_Para4pt():
     from thop import profile
     """
     根据pytorch的pt文件来计算模型的FLOPs和参数量，use thop
@@ -265,22 +266,26 @@ def FLOPs_Para4pt(model):
 
     Returns:None
     """
-    # 获得模型部分
-    model = model["model"].model
-    print(model)
+
+    pa = Path("/home/youtian/Documents/pro/pyCode/ultralytics-YOLOv8/yolov8l.pt")
+    model = torch.load(str(pa).strip())
+
+    # 先将模型的调整为half()格式，再将其贴到GPU
+    model = model.get("model").half().to(check_GPU())
+
     # 假设模型期望的输入是3个通道的图像
     input_tensor = torch.randn(1, 3, 640, 640)
 
-    # 判断模型是否可以使用的GPU，如果模型在GPU上运行，需要将输入数据也发送到GPU
-    model.to(check_GPU())
-    input_tensor = input_tensor.to(check_GPU())
-
-    # convert model and input into half type
-    model = model.half()
-    input_tensor = input_tensor.half()
+    # 同理，将数据转化成半精度之后再加载到GPU
+    input_tensor = input_tensor.half().to(check_GPU())
 
     # 调用profile函数计算FLOPs和参数量
-    flops, params = profile(model, inputs=(input_tensor,))
+    macs, params = profile(model, inputs=(input_tensor,))
+
+    # 将macs转化成flops
+    flops = macs / 1E9 * 2
+    params = params / 1E6
+
     print('flops:{}'.format(flops))
     print('params:{}'.format(params))
 
@@ -299,12 +304,9 @@ def predict():
 
 
 if __name__ == "__main__":
-    # pa = Path("/home/youtian/Documents/pro/pyCode/YOLOv7-lite/yolov7.pt")
-    pa = Path("/home/youtian/Documents/pro/pyCode/ultralytics-YOLOv8/yolov8l.pt")
-    model = torch.load(pa)
-
     # Para4pt(model)
-    FLOPs_Para4pt(model)
+    FLOPs_Para4pt()
+
     # loss_compara_pic("./loss_csv")
     # calc_instance()
     # train()

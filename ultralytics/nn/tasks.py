@@ -103,7 +103,6 @@ class BaseModel(nn.Module):
         """
         Profile the computation time and FLOPs of a single layer of the model on a given input.
         Appends the results to the provided list.
-
         Args:
             m (nn.Module): The layer to be profiled.
             x (torch.Tensor): The input data to the layer.
