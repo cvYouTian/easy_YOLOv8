@@ -1,13 +1,11 @@
+import numpy as np
 import torch
-from torchsummary import summary
 import cv2
 from PIL import Image
 from torch import nn
 import torch.nn.functional as F
 from typing import Union, Type
 from torchvision import transforms
-from pathlib import Path
-
 from YOLOv8lite.Utils import make_anchors, dist2bbox
 
 
@@ -155,7 +153,7 @@ class Detect(nn.Module):
         # 分类的数量 + 定位信息的数量
         self.nc = nc
         # 检测头的数量
-        self.stride = torch.tensor([8, 16, 32], dtype=torch.float32, device="cuda:0")
+        self.stride = torch.tensor([8, 16, 32], dtype=torch.float32)
         self.reg_max = reg_max
         # self.no 不包含位置关系只是一个纯数字
         self.no = self.reg_max * 4 + nc 
@@ -315,20 +313,30 @@ class YOLOv8l(nn.Module):
 
 
 if __name__ == '__main__':
-    image_path = "/home/youtian/Pictures/Screenshots/bird.png"
+    image_path = "YOLOv8lite/experimental/img.png"
+    # image_path = np.full((640, 640, 3),255, dtype=np.uint8)
     net = YOLOv8l(80, 16)
+    if torch.cuda.device_count() > 1:
+        net = nn.DataParallel(net)
 
-    net.to("cuda:0")
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    net.to(device)
     net.eval()
     transform = transforms.Compose([transforms.Resize((640, 640)),
                                     transforms.ToTensor()])
 
     # image = Image.open(image_path)
     image = cv2.imread(image_path)
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+    if image is None:
+        raise ValueError("not process image: {}".format(image))
+
+
     image = Image.fromarray(image)
     image = transform(image)
 
-    batch_input = image.unsqueeze(0).to("cuda:0")
+    batch_input = image.unsqueeze(0).to(device)
 
     with torch.no_grad():
         # tensor: [1, 84, 8400], list[tensor]: [x15, x18, x21]

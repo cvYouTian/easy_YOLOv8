@@ -16,5 +16,3 @@ class loss:
     def __init__(self, model):
         device = next(model.parameters()).device
         h = model.args
-
-
