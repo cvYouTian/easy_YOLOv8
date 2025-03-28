@@ -313,7 +313,9 @@ class YOLOv8l(nn.Module):
 
 
 if __name__ == '__main__':
-    image_path = "YOLOv8lite/experimental/img.png"
+    import os
+    image_path = "../experimental/img.png"
+    print(os.path.abspath(image_path))
     # image_path = np.full((640, 640, 3),255, dtype=np.uint8)
     net = YOLOv8l(80, 16)
     if torch.cuda.device_count() > 1:
@@ -325,13 +327,11 @@ if __name__ == '__main__':
     transform = transforms.Compose([transforms.Resize((640, 640)),
                                     transforms.ToTensor()])
 
-    # image = Image.open(image_path)
     image = cv2.imread(image_path)
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
     if image is None:
         raise ValueError("not process image: {}".format(image))
-
 
     image = Image.fromarray(image)
     image = transform(image)
