@@ -1,12 +1,7 @@
-from tkinter.font import names
-
 import torch
 import torch.nn as nn
 from pathlib import Path
 from typing import Union
-
-from modelscope.models.cv.face_reconstruction.models.unet import weights_init
-
 from YOLOv8lite.network.model import YOLOv8l
 from Utils.process_yaml import yaml_load
 import time
