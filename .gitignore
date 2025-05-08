@@ -5,6 +5,7 @@ test.py
 testfolders
 *.jpg
 *.zip
+YOLOv8lite/coco128
 SCConv_test.py
 #########################################
 __pycache__/
