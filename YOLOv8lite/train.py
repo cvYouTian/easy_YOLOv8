@@ -9,6 +9,7 @@ import time
 
 class Trainer(object):
     def __init__(self, cfg_path:Union[Path, str], data_cfg_path:Union[Path, str]):
+
         # train config file
         self.cfg_dict = yaml_load(cfg_path)
         # dataset config file
