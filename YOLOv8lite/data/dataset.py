@@ -9,67 +9,25 @@ from ultralytics.data.augment import v8_transforms, Compose, CopyPaste, RandomPe
 import numpy as np
 
 
-class BaseMixTransform:
-    """This implementation is from mmyolo."""
-
-    def __init__(self, dataset, pre_transform=None, p=0.0) -> None:
-        self.dataset = dataset
-        self.pre_transform = pre_transform
-        self.p = p
-
-    def __call__(self, labels):
-        """Applies pre-processing transforms and mixup/mosaic transforms to labels data."""
-        # process label with p percent
-        if random.uniform(0, 1) > self.p:
-            return labels
-
-        # Get index of one or three other images
-        indexes = self.get_indexes()
-        if isinstance(indexes, int):
-            indexes = [indexes]
-
-        # Get images information will be used for Mosaic or MixUp
-        mix_labels = [self.dataset.get_image_and_label(i) for i in indexes]
-
-        if self.pre_transform is not None:
-            for i, data in enumerate(mix_labels):
-                mix_labels[i] = self.pre_transform(data)
-        labels['mix_labels'] = mix_labels
-
-        # Mosaic or MixUp
-        labels = self._mix_transform(labels)
-        labels.pop('mix_labels', None)
-        return labels
-
-    def _mix_transform(self, labels):
-        """Applies MixUp or Mosaic augmentation to the label dictionary."""
-        raise NotImplementedError
-
-    def get_indexes(self):
-        """Gets a list of shuffled indexes for mosaic augmentation."""
-        raise NotImplementedError
-
-
-class Mosaic(BaseMixTransform):
-
-    def __init__(self, dataset, imgsz=640, p=1.0, n=4):
-        """Initializes the object with a dataset, image size, probability, and border."""
-        super().__init__(dataset=dataset, p=p)
-
+class Mosaic:
+    """
+    mosaic
+    """
+    def __init__(self, dataset, imgsz=640):
         self.dataset = dataset
         self.imgsz = imgsz
+        # 建立单位网格的宽和高
         self.border = (-imgsz // 2, -imgsz // 2)  # width, height
-        self.n = n
 
     def get_indexes(self, buffer=True):
-        """Return a list of random indexes from the dataset."""
-        if buffer:  # select images from buffer
-            return random.choices(list(self.dataset.buffer), k=self.n - 1)
-        else:  # select any images
-            return [random.randint(0, len(self.dataset) - 1) for _ in range(self.n - 1)]
+        # 从buffer中挑选数据会更快
+        if buffer:
+            return random.choices(list(self.dataset.buffer), k=3)
+        # 从整个数据集上选取
+        else:
+            return [random.randint(0, len(self.dataset) - 1) for _ in range(3)]
 
     def _mix_transform(self, labels):
-        """Apply mixup transformation to the input image and labels."""
         assert labels.get('rect_shape', None) is None, 'rect and mosaic are mutually exclusive.'
         assert len(labels.get('mix_labels', [])), 'There are no other images for mosaic augment.'
         return self._mosaic4(labels)
@@ -143,6 +101,24 @@ class Mosaic(BaseMixTransform):
         return final_labels
 
 
+    def __call__(self, labels):
+        # choice randomly index of three images
+        indexes = self.get_indexes()
+
+        # Get images information will be used for Mosaic or MixUp
+        mix_labels = [self.dataset.get_image_and_label(i) for i in indexes]
+
+        if self.pre_transform is not None:
+            for i, data in enumerate(mix_labels):
+                mix_labels[i] = self.pre_transform(data)
+        labels['mix_labels'] = mix_labels
+
+        # Mosaic or MixUp
+        labels = self._mix_transform(labels)
+        labels.pop('mix_labels', None)
+        return labels
+
+
 class YOLOv8Dataset(Dataset):
     """
     Dataset class for loading object detection labels in YOLO format.
@@ -169,7 +145,7 @@ class YOLOv8Dataset(Dataset):
 
         self.augment = augment
 
-    # from ultraliytics
+
     def get_img_files(self, img_path):
         """Read image files."""
         f = []  # image files
@@ -188,25 +164,9 @@ class YOLOv8Dataset(Dataset):
         return im_files
 
     def build_transforms(self, hyp=None):
-        """Builds and appends transforms to the list."""
         if self.augment:
             hyp.mosaic = hyp.mosaic if hyp.mosaic else 0
             transforms = v8_transforms(self, hyp)
-
-    @staticmethod
-    def v8_transform(dataset, imgsz:List, hyp):
-        pre_transform = Compose([
-            Mosaic(dataset, imgsz, p=hyp.mosaic),
-            RandomPerspective(
-                degrees=hyp.degrees,
-                translate=hyp.translate,
-                scale=hyp.scale,
-                perspective=hyp.perspective,
-                pre_transform=LetterBox(new_shape=imgsz)
-
-            )
-        ])
-
 
     @staticmethod
     def img2label_paths(img_paths):

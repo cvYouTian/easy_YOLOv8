@@ -5,11 +5,8 @@ from itertools import repeat
 import cv2
 import numpy as np
 import torch
-import torchvision
 from tqdm import tqdm
-
 from ultralytics.utils import LOCAL_RANK, NUM_THREADS, TQDM_BAR_FORMAT, is_dir_writeable
-
 from .augment import Compose, Format, Instances, LetterBox, classify_albumentations, classify_transforms, v8_transforms
 from .base import BaseDataset
 from .utils import HELP_URL, LOGGER, get_hash, img2label_paths, verify_image_label
@@ -139,7 +136,6 @@ class YOLODataset(BaseDataset):
         if len_cls == 0:
             raise ValueError(f'All labels empty in {cache_path}, can not start training without labels. {HELP_URL}')
         return labels
-
 
     # TODO: use hyp config to set all these augmentations
     def build_transforms(self, hyp=None):
