@@ -12,7 +12,6 @@ from ultralytics.utils.torch_utils import de_parallel, torch_distributed_zero_fi
 
 # BaseTrainer python usage
 class DetectionTrainer(BaseTrainer):
-
     def build_dataset(self, img_path, mode='train', batch=None):
         """
         Build YOLO Dataset.

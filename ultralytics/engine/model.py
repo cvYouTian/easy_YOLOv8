@@ -2,7 +2,6 @@
 import sys
 from pathlib import Path
 from typing import Union
-
 from ultralytics.cfg import get_cfg
 from ultralytics.engine.exporter import Exporter
 from ultralytics.models import yolo  # noqa
