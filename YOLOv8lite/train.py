@@ -1,11 +1,10 @@
-import torch
-import torch.nn as nn
 from pathlib import Path
 from typing import Union
 from YOLOv8lite.network.model import YOLOv8l
 from Utils.process_yaml import yaml_load
 import time
 import glob
+
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[1]  # YOLO
@@ -44,7 +43,8 @@ class Trainer:
 
         # model and data
         self.data = self.check_dataset(self.cfg_dict.get("data"))
-        self.trainset, self.testset = self.get_dataset()
+
+        self.trainset, self.testset = self.get_dataset(self.data)
 
     @staticmethod
     def check_dataset(data_cfg_path:Union[Path, str]):
@@ -60,16 +60,29 @@ class Trainer:
         for k in "train", "val":
             if k not in data_dict.keys():
                 raise KeyError(f"{k} is not in data dict, check yaml of data please!")
-        # add nc parameter for data yaml
+
+        # add the number of the classes parameter for data yaml
         data_dict["nc"] = len(data_dict["names"])
 
+        # override the path of dataset with the abosulte path
+        path = Path(data_dict.get("path"))
+        if not path.is_absolute():
+            # get the absolute path
+            path = (ROOT / path).resolve()
+        data_dict["path"] = str(path)
 
+        for k in "train", "val", "test":
+            if data_dict.get(k):
+                x = (path / data_dict.get(k)).resolve()
+                data_dict[k] = str(x)
 
+        return data_dict
 
 
 if __name__ == '__main__':
-    path = Path("./configs/train.yaml")
+    path = Path("./configs/dataset.yaml")
+    print(path.resolve(), type(path.resolve()))
     a = yaml_load(path)
-    print(type(a.get("data")))
+    print(a.get("names"),"\n", type(a.get("names")))
 
 
