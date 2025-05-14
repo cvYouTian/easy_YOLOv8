@@ -1,50 +1,84 @@
+import torch
 from pathlib import Path
+from types import SimpleNamespace
+from YOLOv8lite.data.dataset import YOLODataset
 from typing import Union
 from YOLOv8lite.network.model import YOLOv8l
 from Utils.process_yaml import yaml_load
 import time
 import glob
 
+from ultralytics.data import build_dataloader, build_yolo_dataset
+from ultralytics.utils.loss import v8DetectionLoss
+
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[1]  # YOLO
 
+class DetectionModel:
+    def __init__(self, cfg="yolov8n.yaml", ch=3, nc=None):
+        self.yaml = cfg if isinstance(cfg, dict) else yaml_load(cfg)
+
+    def _perdict_augment(self):
+        ...
+
+    def init_criterion(self):
+        return v8DetectionLoss
 
 class Trainer:
     def __init__(self, cfg_path:Union[Path, str], data_cfg_path:Union[Path, str]):
         # train config file
-        self.cfg_dict = yaml_load(cfg_path)
+        self.train_cfg_dict = yaml_load(cfg_path)
+
+        self.epoch_time_start = time.time()
+        self.train_time_start = time.time()
+
         # dataset config file
         self.data_cfg_path = yaml_load(data_cfg_path)
         self.num_classes = len(self.data_cfg_path.get('names'))
 
-        if self.cfg_dict.get('device') == 'cpu':
+        if self.train_cfg_dict.get('device') == 'cpu':
             self.device = 'cpu'
-            self.cfg_dict['workers'] = 0
+            self.train_cfg_dict['workers'] = 0
+            self.world_size = 0
         else:
             self.device = "cuda"
-
-        self.model = YOLOv8l(self.num_classes, 16).to(self.device)
+            self.world_size = 1
 
         self.validator = None
         self.metrics = None
 
         # save
         self.name = Path(time.strftime("%Y%m%d-%H%M%S", time.localtime()))
-        self.root = Path(self.cfg_dict.get("save_dir")) / self.name
+        self.root = Path(self.train_cfg_dict.get("save_dir")) / self.name
         self.weight_dir = self.root / "weights"
 
         self.last, self.best = self.weight_dir / "last.pt", self.weight_dir / "best.pt"
-        self.save_period = self.cfg_dict.get("save_period")
+        self.save_period = self.train_cfg_dict.get("save_period")
 
-        self.batch_size = self.cfg_dict.get("batch")
-        self.epochs = self.cfg_dict.get("epochs")
+        self.batch_size = self.train_cfg_dict.get("batch")
+        self.epochs = self.train_cfg_dict.get("epochs")
         self.start_epoch = 0
 
         # model and data
-        self.data = self.check_dataset(self.cfg_dict.get("data"))
+        self.model = YOLOv8l(self.num_classes, 16).to(self.device)
 
-        self.trainset, self.testset = self.get_dataset(self.data)
+        # convert path to absolute path
+        self.data = self.check_dataset(self.train_cfg_dict.get("data"))
+        self.trainset, self.testset = self.data.get("train"), self.data.get("test")
+
+        # training...
+        self.do_trian()
+
+    def get_dataloader(self, dataset_path, batch_size, mode):
+        assert mode in ['train', 'val']
+
+        dataset = self.build_dataset(dataset_path, mode, batch_size)
+        shuffe = mode == "train"
+
+        workers = self.train_cfg_dict.workers if mode == 'train' else self.train_cfg_dict.workers * 2
+        return build_dataloader(dataset, batch_size, workers, shuffe,)
+
 
     @staticmethod
     def check_dataset(data_cfg_path:Union[Path, str]):
@@ -77,6 +111,12 @@ class Trainer:
                 data_dict[k] = str(x)
 
         return data_dict
+
+    def do_trian(self):
+        ckpt = self.sutup_model()
+        self.model = self.model.to(self.device)
+
+
 
 
 if __name__ == '__main__':

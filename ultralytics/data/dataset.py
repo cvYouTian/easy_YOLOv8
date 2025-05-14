@@ -1,4 +1,3 @@
-# Ultralytics YOLO 🚀, AGPL-3.0 licensefrom itertools import repeat
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
 from itertools import repeat
@@ -15,12 +14,6 @@ from .utils import HELP_URL, LOGGER, get_hash, img2label_paths, verify_image_lab
 class YOLODataset(BaseDataset):
     """
     Dataset class for loading object detection and/or segmentation labels in YOLO format.
-
-    Args:
-        data (dict, optional): A dataset YAML dictionary. Defaults to None.
-        use_segments (bool, optional): If True, segmentation masks are used as labels. Defaults to False.
-        use_keypoints (bool, optional): If True, keypoints are used as labels. Defaults to False.
-
     Returns:
         (torch.utils.data.Dataset): A PyTorch dataset object that can be used for training an object detection model.
     """
