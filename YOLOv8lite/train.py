@@ -1,19 +1,18 @@
 import torch
 from pathlib import Path
-from types import SimpleNamespace
-from YOLOv8lite.data.dataset import YOLODataset
 from typing import Union
 from YOLOv8lite.network.model import YOLOv8l
 from Utils.process_yaml import yaml_load
 import time
 import glob
-
 from ultralytics.data import build_dataloader, build_yolo_dataset
+from ultralytics.data.build import InfiniteDataLoader
 from ultralytics.utils.loss import v8DetectionLoss
 
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[1]  # YOLO
+
 
 class DetectionModel:
     def __init__(self, cfg="yolov8n.yaml", ch=3, nc=None):
@@ -70,14 +69,14 @@ class Trainer:
         # training...
         self.do_trian()
 
+
     def get_dataloader(self, dataset_path, batch_size, mode):
         assert mode in ['train', 'val']
-
         dataset = self.build_dataset(dataset_path, mode, batch_size)
         shuffe = mode == "train"
+        workers = self.train_cfg_dict.get("workers") if mode == 'train' else self.train_cfg_dict.get("workers") * 2
 
-        workers = self.train_cfg_dict.workers if mode == 'train' else self.train_cfg_dict.workers * 2
-        return build_dataloader(dataset, batch_size, workers, shuffe,)
+        return build_dataloader(dataset, batch_size, workers, shuffe)
 
 
     @staticmethod
@@ -112,9 +111,15 @@ class Trainer:
 
         return data_dict
 
+    def get_dataloader(self, dataset_path, batch_size, mode="train"):
+        assert mode in ['train', 'val']
+
+        shuffle = mode == "train"
+        workers = self.train_cfg_dict.get("workers") if mode == "train" else self.train_cfg_dict.get("workers") * 2
+
+
     def do_trian(self):
-        ckpt = self.sutup_model()
-        self.model = self.model.to(self.device)
+        self.train_loader = self.get_dataloader(self.trainset, self.batch_size, "train")
 
 
 
